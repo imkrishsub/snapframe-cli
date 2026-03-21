@@ -64,6 +64,25 @@ def _load_font(font_config: FontConfig, project_root: Path) -> ImageFont.ImageFo
         return ImageFont.load_default()
 
 
+_UNICODE_REPLACEMENTS = {
+    "\u2014": " - ",   # em dash —
+    "\u2013": "-",     # en dash –
+    "\u2018": "'",     # left single quote '
+    "\u2019": "'",     # right single quote '
+    "\u201c": '"',     # left double quote "
+    "\u201d": '"',     # right double quote "
+    "\u2026": "...",   # ellipsis …
+    "\u00a0": " ",     # non-breaking space
+    "\u2022": "*",     # bullet •
+}
+
+
+def _sanitize_text(text: str) -> str:
+    for char, replacement in _UNICODE_REPLACEMENTS.items():
+        text = text.replace(char, replacement)
+    return text
+
+
 def _wrap_text(text: str, font: ImageFont.ImageFont, max_width: int, draw: ImageDraw.ImageDraw) -> list[str]:
     words = text.split()
     lines = []
@@ -234,7 +253,7 @@ def render_hero(
     else:
         text_area_w = width - 2 * pad
 
-    lines = _wrap_text(image_config.title, font, text_area_w, draw)
+    lines = _wrap_text(_sanitize_text(image_config.title), font, text_area_w, draw)
 
     # Measure lines
     line_metrics = []
