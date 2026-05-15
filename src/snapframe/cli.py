@@ -64,6 +64,118 @@ shadow_opacity = 0.4
 scale = 0.75
 """
 
+APPSTORE_IPHONE_67_TOML = """\
+size = [1320, 2868]
+layout = "hero"
+padding = 100
+
+[background]
+type = "gradient"
+colors = ["#667eea", "#764ba2"]
+angle = 135
+
+[font]
+path = "assets/fonts/Inter-Bold.ttf"
+size = 80
+color = "#ffffff"
+align = "center"
+
+[text]
+position = "top"
+
+[screenshot]
+enabled = true
+rounded_corners = 36
+shadow = true
+shadow_blur = 50
+shadow_opacity = 0.5
+scale = 0.85
+"""
+
+APPSTORE_IPHONE_65_TOML = """\
+size = [1284, 2778]
+layout = "hero"
+padding = 100
+
+[background]
+type = "gradient"
+colors = ["#667eea", "#764ba2"]
+angle = 135
+
+[font]
+path = "assets/fonts/Inter-Bold.ttf"
+size = 80
+color = "#ffffff"
+align = "center"
+
+[text]
+position = "top"
+
+[screenshot]
+enabled = true
+rounded_corners = 36
+shadow = true
+shadow_blur = 50
+shadow_opacity = 0.5
+scale = 0.85
+"""
+
+APPSTORE_IPAD_129_TOML = """\
+size = [2064, 2752]
+layout = "hero"
+padding = 160
+
+[background]
+type = "gradient"
+colors = ["#667eea", "#764ba2"]
+angle = 135
+
+[font]
+path = "assets/fonts/Inter-Bold.ttf"
+size = 96
+color = "#ffffff"
+align = "center"
+
+[text]
+position = "top"
+
+[screenshot]
+enabled = true
+rounded_corners = 48
+shadow = true
+shadow_blur = 70
+shadow_opacity = 0.5
+scale = 0.80
+"""
+
+APPSTORE_IPAD_11_TOML = """\
+size = [1488, 2266]
+layout = "hero"
+padding = 120
+
+[background]
+type = "gradient"
+colors = ["#667eea", "#764ba2"]
+angle = 135
+
+[font]
+path = "assets/fonts/Inter-Bold.ttf"
+size = 88
+color = "#ffffff"
+align = "center"
+
+[text]
+position = "top"
+
+[screenshot]
+enabled = true
+rounded_corners = 40
+shadow = true
+shadow_blur = 60
+shadow_opacity = 0.5
+scale = 0.80
+"""
+
 PROJECT_TOML = """\
 [[images]]
 template = "templates/hero-og.toml"
@@ -94,6 +206,7 @@ def init(project_dir: str):
     # Create directory structure
     for d in [
         root / "templates",
+        root / "templates" / "appstore",
         root / "assets" / "fonts",
         root / "assets" / "screenshots",
         root / "output",
@@ -105,6 +218,10 @@ def init(project_dir: str):
         root / "snapframe.toml": PROJECT_TOML,
         root / "templates" / "hero-og.toml": HERO_OG_TOML,
         root / "templates" / "hero-square.toml": HERO_SQUARE_TOML,
+        root / "templates" / "appstore" / "iphone-67.toml": APPSTORE_IPHONE_67_TOML,
+        root / "templates" / "appstore" / "iphone-65.toml": APPSTORE_IPHONE_65_TOML,
+        root / "templates" / "appstore" / "ipad-129.toml": APPSTORE_IPAD_129_TOML,
+        root / "templates" / "appstore" / "ipad-11.toml": APPSTORE_IPAD_11_TOML,
     }
 
     for path, content in files.items():

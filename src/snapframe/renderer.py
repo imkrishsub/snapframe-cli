@@ -269,7 +269,10 @@ def render_hero(
 
     # Layout regions
     if text_pos in ("top", "bottom"):
-        text_block_h = total_text_h + 2 * pad
+        # Ensure the text band is at least 15% of the canvas height so that on
+        # tall portrait canvases a single short line doesn't produce a tiny sliver.
+        min_text_h = int(height * 0.15)
+        text_block_h = max(total_text_h + 2 * pad, min_text_h)
         ss_block_h = height - text_block_h
 
         if text_pos == "top":
