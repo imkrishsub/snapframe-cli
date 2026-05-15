@@ -1,0 +1,17 @@
+# iPhone 15 — 6.1" (standard)
+# Reference dimensions in logical points
+
+[frame]
+width = 390
+height = 844
+corner_radius = 47
+border_width = 14
+border_color = "#1c1c1e"
+highlight_color = "#3a3a3a"
+
+[screen]
+x = 14
+y = 14
+width = 362
+height = 816
+corner_radius = 38

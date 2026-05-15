@@ -1,0 +1,16 @@
+# iPhone 16 Pro — 6.3"
+
+[frame]
+width = 402
+height = 874
+corner_radius = 54
+border_width = 14
+border_color = "#1c1c1e"
+highlight_color = "#3a3a3a"
+
+[screen]
+x = 14
+y = 14
+width = 374
+height = 846
+corner_radius = 42

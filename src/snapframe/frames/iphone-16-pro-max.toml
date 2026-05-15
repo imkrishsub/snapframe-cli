@@ -1,0 +1,16 @@
+# iPhone 16 Pro Max — 6.9"
+
+[frame]
+width = 440
+height = 956
+corner_radius = 56
+border_width = 14
+border_color = "#1c1c1e"
+highlight_color = "#3a3a3a"
+
+[screen]
+x = 14
+y = 14
+width = 412
+height = 928
+corner_radius = 44

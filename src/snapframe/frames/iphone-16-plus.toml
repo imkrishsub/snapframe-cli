@@ -1,0 +1,16 @@
+# iPhone 16 Plus — 6.7"
+
+[frame]
+width = 430
+height = 932
+corner_radius = 52
+border_width = 14
+border_color = "#1c1c1e"
+highlight_color = "#3a3a3a"
+
+[screen]
+x = 14
+y = 14
+width = 402
+height = 904
+corner_radius = 40
