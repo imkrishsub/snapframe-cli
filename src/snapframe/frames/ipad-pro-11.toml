@@ -1,0 +1,17 @@
+# iPad Pro 11"
+# Reference dimensions in logical points
+
+[frame]
+width = 834
+height = 1194
+corner_radius = 18
+border_width = 16
+border_color = "#1c1c1e"
+highlight_color = "#3a3a3a"
+
+[screen]
+x = 16
+y = 16
+width = 802
+height = 1162
+corner_radius = 12

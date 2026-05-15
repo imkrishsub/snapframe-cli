@@ -1,0 +1,16 @@
+# iPhone 17 Air — 6.7"
+
+[frame]
+width = 430
+height = 932
+corner_radius = 52
+border_width = 12
+border_color = "#1c1c1e"
+highlight_color = "#3a3a3a"
+
+[screen]
+x = 12
+y = 12
+width = 406
+height = 908
+corner_radius = 42

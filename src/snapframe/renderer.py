@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import math
+import tomllib
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from .config import FontConfig, ImageConfig, ScreenshotConfig, TemplateConfig
+from .config import DeviceFrameConfig, FontConfig, ImageConfig, ScreenshotConfig, TemplateConfig
+
+_FRAMES_DIR = Path(__file__).parent / "frames"
 
 
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
@@ -195,16 +198,115 @@ def add_shadow(
     return result
 
 
+def _load_frame_spec(model: str) -> dict:
+    sidecar = _FRAMES_DIR / f"{model}.toml"
+    if not sidecar.exists():
+        raise ValueError(f"Unknown device frame model '{model}'. Available: {', '.join(p.stem for p in _FRAMES_DIR.glob('*.toml'))}")
+    with open(sidecar, "rb") as f:
+        return tomllib.load(f)
+
+
+def generate_frame(model: str, target_width: int, target_height: int) -> tuple[Image.Image, tuple[int, int, int, int]]:
+    """Return (frame_image, (screen_x, screen_y, screen_w, screen_h)) scaled to fit target dimensions.
+
+    The frame PNG has a transparent interior (the screen area) and an opaque border drawn
+    around it. Callers paste the screenshot at the returned screen rect, then composite
+    the frame on top.
+    """
+    spec = _load_frame_spec(model)
+    ref_w = spec["frame"]["width"]
+    ref_h = spec["frame"]["height"]
+
+    # Scale uniformly to fit inside target_width × target_height
+    scale = min(target_width / ref_w, target_height / ref_h)
+    fw = int(ref_w * scale)
+    fh = int(ref_h * scale)
+
+    corner_r = int(spec["frame"]["corner_radius"] * scale)
+    border_w = max(1, int(spec["frame"]["border_width"] * scale))
+    border_rgb = _hex_to_rgb(spec["frame"]["border_color"])
+    highlight_rgb = _hex_to_rgb(spec["frame"]["highlight_color"])
+
+    sx = int(spec["screen"]["x"] * scale)
+    sy = int(spec["screen"]["y"] * scale)
+    sw = int(spec["screen"]["width"] * scale)
+    sh = int(spec["screen"]["height"] * scale)
+    screen_cr = int(spec["screen"].get("corner_radius", 0) * scale)
+
+    # Build the frame: transparent background, rounded-rect border, transparent screen hole
+    frame = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(frame)
+
+    # Outer shape (filled with border color)
+    draw.rounded_rectangle([(0, 0), (fw - 1, fh - 1)], radius=corner_r, fill=(*border_rgb, 255))
+
+    # Subtle inner highlight ring (1px lighter, gives depth)
+    draw.rounded_rectangle(
+        [(1, 1), (fw - 2, fh - 2)],
+        radius=max(0, corner_r - 1),
+        outline=(*highlight_rgb, 180),
+        width=1,
+    )
+
+    # Screen cutout (transparent, with rounded corners matching the display)
+    if screen_cr > 0:
+        draw.rounded_rectangle([(sx, sy), (sx + sw - 1, sy + sh - 1)], radius=screen_cr, fill=(0, 0, 0, 0))
+    else:
+        draw.rectangle([(sx, sy), (sx + sw - 1, sy + sh - 1)], fill=(0, 0, 0, 0))
+
+    return frame, (sx, sy, sw, sh, screen_cr)
+
+
+def apply_device_frame(
+    screenshot: Image.Image,
+    frame_config: DeviceFrameConfig,
+    available_width: int,
+    available_height: int,
+    ss_config: ScreenshotConfig,
+) -> tuple[Image.Image, tuple[int, int]]:
+    """Composite screenshot inside a device frame and return (composite, content_size).
+
+    The composite image has the screenshot filling the frame's screen area, with the
+    frame border drawn on top. Shadow (if enabled) is applied to the whole composite.
+    """
+    frame_img, (sx, sy, sw, sh, screen_cr) = generate_frame(frame_config.model, available_width, available_height)
+    fw, fh = frame_img.size
+
+    # Resize screenshot to fill the screen area exactly, then clip to screen shape
+    ss_resized = screenshot.resize((sw, sh), Image.LANCZOS)
+    if screen_cr > 0:
+        ss_resized = apply_rounded_corners(ss_resized, screen_cr)
+
+    # Build composite: transparent canvas → paste screenshot at screen position → paste frame on top
+    composite = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
+    composite.paste(ss_resized, (sx, sy), ss_resized)
+    composite.paste(frame_img, (0, 0), frame_img)
+
+    content_size = (fw, fh)
+
+    if ss_config.shadow:
+        composite = add_shadow(composite, ss_config.shadow_blur, ss_config.shadow_opacity)
+
+    return composite, content_size
+
+
 def _load_screenshot(
     path: str,
     config: ScreenshotConfig,
     available_width: int,
     available_height: int,
     project_root: Path,
+    device_frame: DeviceFrameConfig | None = None,
 ) -> tuple[Image.Image, tuple[int, int]]:
     img = Image.open(project_root / path).convert("RGBA")
 
-    # Scale: target width = available_width * scale, capped by height
+    if device_frame and device_frame.enabled:
+        # Scale the available region by `scale` to leave breathing room on the canvas
+        max_w = int(available_width * config.scale)
+        max_h = int(available_height * 0.92)
+        return apply_device_frame(img, device_frame, max_w, max_h, config)
+
+    # No device frame — original path
     target_w = int(available_width * config.scale)
     aspect = img.height / img.width
     target_h = int(target_w * aspect)
@@ -332,6 +434,7 @@ def render_hero(
             ss_w,
             ss_h,
             project_root,
+            device_frame=template.device_frame,
         )
 
         shadow_pad = template.screenshot.shadow_blur * 2 if template.screenshot.shadow else 0

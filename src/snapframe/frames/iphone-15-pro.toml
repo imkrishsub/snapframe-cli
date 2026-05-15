@@ -1,0 +1,17 @@
+# iPhone 15 Pro — 6.1"
+# Reference dimensions in logical points (will be scaled to fit the canvas region)
+
+[frame]
+width = 393
+height = 852
+corner_radius = 50
+border_width = 14
+border_color = "#1c1c1e"
+highlight_color = "#3a3a3a"
+
+[screen]
+x = 14
+y = 14
+width = 365
+height = 824
+corner_radius = 40

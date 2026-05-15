@@ -37,6 +37,12 @@ class ScreenshotConfig:
 
 
 @dataclass
+class DeviceFrameConfig:
+    enabled: bool = False
+    model: str = "iphone-15-pro"
+
+
+@dataclass
 class TemplateConfig:
     size: tuple[int, int] = (1200, 630)
     layout: str = "hero"
@@ -45,6 +51,7 @@ class TemplateConfig:
     font: FontConfig = field(default_factory=FontConfig)
     text: TextConfig = field(default_factory=TextConfig)
     screenshot: ScreenshotConfig = field(default_factory=ScreenshotConfig)
+    device_frame: DeviceFrameConfig = field(default_factory=DeviceFrameConfig)
 
 
 @dataclass
@@ -110,6 +117,15 @@ def _make_screenshot(d: dict) -> ScreenshotConfig:
     return cfg
 
 
+def _make_device_frame(d: dict) -> DeviceFrameConfig:
+    cfg = DeviceFrameConfig()
+    if "enabled" in d:
+        cfg.enabled = d["enabled"]
+    if "model" in d:
+        cfg.model = d["model"]
+    return cfg
+
+
 def load_template(path: Path, project_root: Path) -> TemplateConfig:
     with open(path, "rb") as f:
         data = tomllib.load(f)
@@ -136,6 +152,9 @@ def load_template(path: Path, project_root: Path) -> TemplateConfig:
 
     if "screenshot" in data:
         cfg.screenshot = _make_screenshot(data["screenshot"])
+
+    if "device_frame" in data:
+        cfg.device_frame = _make_device_frame(data["device_frame"])
 
     return cfg
 
