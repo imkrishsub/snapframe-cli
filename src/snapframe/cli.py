@@ -172,3 +172,14 @@ def build(project: str, only: str | None):
 
         except Exception as e:
             click.echo(click.style(f"  Error: {e}", fg="red"), err=True)
+
+
+@cli.command()
+@click.option("--host", default="127.0.0.1", show_default=True, help="Host to bind to.")
+@click.option("--port", default=5000, show_default=True, help="Port to listen on.")
+@click.option("--debug", is_flag=True, default=False, help="Enable debug mode.")
+def serve(host: str, port: int, debug: bool):
+    """Start the web UI."""
+    from .server import app
+    click.echo(f"Snapframe UI running at http://{host}:{port}")
+    app.run(host=host, port=port, debug=debug)
