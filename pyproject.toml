@@ -12,6 +12,9 @@ dependencies = [
     "flask>=3.0",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
 [project.scripts]
 snapframe = "snapframe.cli:cli"
 
