@@ -227,6 +227,12 @@ def generate_frame(
     target_height: int,
     finish: str = "black",
 ) -> tuple[Image.Image, tuple[int, int, int, int, int]]:
+    """Render a scaled device-frame image for the given model and finish.
+
+    Returns ``(frame_image, (sx, sy, sw, sh, screen_cr))`` where ``sx`` is
+    offset from the raw spec by ``btn_w`` to account for button protrusion on
+    the left side.
+    """
     spec = _load_frame_spec(model)
     ref_w = spec["frame"]["width"]
     ref_h = spec["frame"]["height"]
@@ -236,7 +242,6 @@ def generate_frame(
     fh = int(ref_h * scale)
 
     corner_r = int(spec["frame"]["corner_radius"] * scale)
-    border_w = max(1, int(spec["frame"]["border_width"] * scale))
     btn_w = max(2, int(3 * scale))
 
     preset = FINISH_PRESETS.get(finish, FINISH_PRESETS["black"])
@@ -293,13 +298,13 @@ def generate_frame(
     # Side buttons
     btn_fill = (*button_rgb, 255)
     btn_r = max(1, btn_w // 2)
-    _buttons = [
+    buttons = [
         ("left",  0.21, 0.06),   # action
         ("left",  0.29, 0.08),   # volume up
         ("left",  0.39, 0.11),   # volume down
         ("right", 0.24, 0.11),   # power
     ]
-    for side, y_frac, h_frac in _buttons:
+    for side, y_frac, h_frac in buttons:
         by = int(fh * y_frac)
         bh = max(2, int(fh * h_frac))
         if side == "left":
