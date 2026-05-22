@@ -4,7 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Setup
 
+Requires Python 3.11+. Create and activate a virtual environment first:
+
 ```bash
+python3.11 -m venv .venv
+source .venv/bin/activate   # macOS/Linux
+.venv\Scripts\activate      # Windows
 pip install -e .
 ```
 
