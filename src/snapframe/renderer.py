@@ -282,19 +282,6 @@ def generate_frame(
     else:
         draw.rectangle([(sx, sy), (sx + sw - 1, sy + sh - 1)], fill=(0, 0, 0, 0))
 
-    # Dynamic Island — iPhones only (spec has [dynamic_island] section)
-    if "dynamic_island" in spec:
-        di = spec["dynamic_island"]
-        di_x = int(di["x"] * scale) + btn_w
-        di_y = int(di["y"] * scale)
-        di_w = int(di["width"] * scale)
-        di_h = int(di["height"] * scale)
-        draw.rounded_rectangle(
-            [(di_x, di_y), (di_x + di_w - 1, di_y + di_h - 1)],
-            radius=di_h // 2,
-            fill=(5, 5, 5, 255),
-        )
-
     # Side buttons
     btn_fill = (*button_rgb, 255)
     btn_r = max(1, btn_w // 2)
