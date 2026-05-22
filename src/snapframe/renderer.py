@@ -50,7 +50,16 @@ _SYSTEM_FONTS = [
 def _load_font(font_config: FontConfig, project_root: Path) -> ImageFont.ImageFont:
     font_path = project_root / font_config.path
     try:
-        return ImageFont.truetype(str(font_path), font_config.size)
+        font = ImageFont.truetype(str(font_path), font_config.size)
+        try:
+            axes = font.get_variation_axes()
+            weight_axes = [a for a in axes if a["name"] in (b"Weight", b"wght")]
+            if weight_axes:
+                ax = weight_axes[0]
+                font.set_variation_by_axes([min(ax["maximum"], max(ax["minimum"], 700))])
+        except OSError:
+            pass
+        return font
     except (OSError, IOError):
         print(f"Warning: font not found at '{font_path}', falling back to system font.")
 
