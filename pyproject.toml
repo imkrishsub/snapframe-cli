@@ -22,4 +22,4 @@ snapframe = "snapframe.cli:cli"
 where = ["src"]
 
 [tool.setuptools.package-data]
-snapframe = ["templates/*", "frames/*"]
+snapframe = ["templates/*", "frames/*", "fonts/*"]
