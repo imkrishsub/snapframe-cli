@@ -10,6 +10,12 @@ from .config import DeviceFrameConfig, FontConfig, ImageConfig, ScreenshotConfig
 
 _FRAMES_DIR = Path(__file__).parent / "frames"
 
+FINISH_PRESETS: dict[str, dict[str, str]] = {
+    "black":            {"border": "#1c1c1e", "highlight": "#3a3a3a", "button": "#2a2a2c"},
+    "matte-gray":       {"border": "#48484a", "highlight": "#636366", "button": "#3a3a3c"},
+    "natural-titanium": {"border": "#8e8e93", "highlight": "#b0b0b5", "button": "#7a7a80"},
+}
+
 
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     hex_color = hex_color.lstrip("#")
@@ -215,53 +221,101 @@ def _load_frame_spec(model: str) -> dict:
         return tomllib.load(f)
 
 
-def generate_frame(model: str, target_width: int, target_height: int) -> tuple[Image.Image, tuple[int, int, int, int]]:
-    """Return (frame_image, (screen_x, screen_y, screen_w, screen_h)) scaled to fit target dimensions.
+def generate_frame(
+    model: str,
+    target_width: int,
+    target_height: int,
+    finish: str = "black",
+) -> tuple[Image.Image, tuple[int, int, int, int, int]]:
+    """Render a scaled device-frame image for the given model and finish.
 
-    The frame PNG has a transparent interior (the screen area) and an opaque border drawn
-    around it. Callers paste the screenshot at the returned screen rect, then composite
-    the frame on top.
+    Returns ``(frame_image, (sx, sy, sw, sh, screen_cr))`` where ``sx`` is
+    offset from the raw spec by ``btn_w`` to account for button protrusion on
+    the left side.
     """
     spec = _load_frame_spec(model)
     ref_w = spec["frame"]["width"]
     ref_h = spec["frame"]["height"]
 
-    # Scale uniformly to fit inside target_width × target_height
     scale = min(target_width / ref_w, target_height / ref_h)
     fw = int(ref_w * scale)
     fh = int(ref_h * scale)
 
     corner_r = int(spec["frame"]["corner_radius"] * scale)
-    border_w = max(1, int(spec["frame"]["border_width"] * scale))
-    border_rgb = _hex_to_rgb(spec["frame"]["border_color"])
-    highlight_rgb = _hex_to_rgb(spec["frame"]["highlight_color"])
+    btn_w = max(2, int(3 * scale))
 
-    sx = int(spec["screen"]["x"] * scale)
+    preset = FINISH_PRESETS.get(finish, FINISH_PRESETS["black"])
+    border_rgb = _hex_to_rgb(preset["border"])
+    highlight_rgb = _hex_to_rgb(preset["highlight"])
+    button_rgb = _hex_to_rgb(preset["button"])
+
+    sx = int(spec["screen"]["x"] * scale) + btn_w
     sy = int(spec["screen"]["y"] * scale)
     sw = int(spec["screen"]["width"] * scale)
     sh = int(spec["screen"]["height"] * scale)
     screen_cr = int(spec["screen"].get("corner_radius", 0) * scale)
 
-    # Build the frame: transparent background, rounded-rect border, transparent screen hole
-    frame = Image.new("RGBA", (fw, fh), (0, 0, 0, 0))
+    total_w = fw + 2 * btn_w
+    frame = Image.new("RGBA", (total_w, fh), (0, 0, 0, 0))
     draw = ImageDraw.Draw(frame)
 
-    # Outer shape (filled with border color)
-    draw.rounded_rectangle([(0, 0), (fw - 1, fh - 1)], radius=corner_r, fill=(*border_rgb, 255))
-
-    # Subtle inner highlight ring (1px lighter, gives depth)
+    # Frame body (shifted right by btn_w to leave room for left buttons)
     draw.rounded_rectangle(
-        [(1, 1), (fw - 2, fh - 2)],
+        [(btn_w, 0), (btn_w + fw - 1, fh - 1)],
+        radius=corner_r,
+        fill=(*border_rgb, 255),
+    )
+    draw.rounded_rectangle(
+        [(btn_w + 1, 1), (btn_w + fw - 2, fh - 2)],
         radius=max(0, corner_r - 1),
         outline=(*highlight_rgb, 180),
         width=1,
     )
 
-    # Screen cutout (transparent, with rounded corners matching the display)
+    # Screen cutout
     if screen_cr > 0:
-        draw.rounded_rectangle([(sx, sy), (sx + sw - 1, sy + sh - 1)], radius=screen_cr, fill=(0, 0, 0, 0))
+        draw.rounded_rectangle(
+            [(sx, sy), (sx + sw - 1, sy + sh - 1)],
+            radius=screen_cr,
+            fill=(0, 0, 0, 0),
+        )
     else:
         draw.rectangle([(sx, sy), (sx + sw - 1, sy + sh - 1)], fill=(0, 0, 0, 0))
+
+    # Dynamic Island — iPhones only (spec has [dynamic_island] section)
+    if "dynamic_island" in spec:
+        di = spec["dynamic_island"]
+        di_x = int(di["x"] * scale) + btn_w
+        di_y = int(di["y"] * scale)
+        di_w = int(di["width"] * scale)
+        di_h = int(di["height"] * scale)
+        draw.rounded_rectangle(
+            [(di_x, di_y), (di_x + di_w - 1, di_y + di_h - 1)],
+            radius=di_h // 2,
+            fill=(5, 5, 5, 255),
+        )
+
+    # Side buttons
+    btn_fill = (*button_rgb, 255)
+    btn_r = max(1, btn_w // 2)
+    buttons = [
+        ("left",  0.21, 0.06),   # action
+        ("left",  0.29, 0.08),   # volume up
+        ("left",  0.39, 0.11),   # volume down
+        ("right", 0.24, 0.11),   # power
+    ]
+    for side, y_frac, h_frac in buttons:
+        by = int(fh * y_frac)
+        bh = max(2, int(fh * h_frac))
+        if side == "left":
+            bx1, bx2 = 0, btn_w
+        else:
+            bx1, bx2 = total_w - btn_w, total_w
+        draw.rounded_rectangle(
+            [(bx1, by), (bx2 - 1, by + bh - 1)],
+            radius=btn_r,
+            fill=btn_fill,
+        )
 
     return frame, (sx, sy, sw, sh, screen_cr)
 
@@ -278,7 +332,7 @@ def apply_device_frame(
     The composite image has the screenshot filling the frame's screen area, with the
     frame border drawn on top. Shadow (if enabled) is applied to the whole composite.
     """
-    frame_img, (sx, sy, sw, sh, screen_cr) = generate_frame(frame_config.model, available_width, available_height)
+    frame_img, (sx, sy, sw, sh, screen_cr) = generate_frame(frame_config.model, available_width, available_height, frame_config.finish)
     fw, fh = frame_img.size
 
     # Resize screenshot to fill the screen area exactly, then clip to screen shape

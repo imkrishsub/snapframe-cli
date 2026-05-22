@@ -40,6 +40,7 @@ class ScreenshotConfig:
 class DeviceFrameConfig:
     enabled: bool = False
     model: str = "iphone-15-pro"
+    finish: str = "black"
 
 
 @dataclass
@@ -123,6 +124,8 @@ def _make_device_frame(d: dict) -> DeviceFrameConfig:
         cfg.enabled = d["enabled"]
     if "model" in d:
         cfg.model = d["model"]
+    if "finish" in d:
+        cfg.finish = d["finish"]
     return cfg
 
 

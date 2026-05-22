@@ -14,3 +14,9 @@ y = 14
 width = 374
 height = 846
 corner_radius = 42
+
+[dynamic_island]
+x = 138
+y = 14
+width = 126
+height = 37
