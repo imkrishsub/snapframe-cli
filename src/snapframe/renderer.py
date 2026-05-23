@@ -217,6 +217,22 @@ def _apply_tilt(img: Image.Image, angle: float) -> Image.Image:
     return img.rotate(-angle, expand=True, resample=Image.BICUBIC)
 
 
+_ISO_SIN = math.sin(math.radians(30))  # 0.5
+_ISO_COS = math.cos(math.radians(30))  # 0.866
+_ISO_TAN = math.tan(math.radians(30))  # 0.577
+
+
+def _apply_iso(img: Image.Image, variant: str) -> Image.Image:
+    w, h = img.size
+    out_w = int(w + h * _ISO_SIN)
+    out_h = int(h * _ISO_COS)
+    if variant == "left":
+        coeffs = (1, _ISO_TAN, -h * _ISO_SIN, 0, 1 / _ISO_COS, 0)
+    else:
+        coeffs = (1, -_ISO_TAN, 0, 0, 1 / _ISO_COS, 0)
+    return img.transform((out_w, out_h), Image.AFFINE, coeffs, resample=Image.BICUBIC)
+
+
 def _load_frame_spec(model: str) -> dict:
     sidecar = _FRAMES_DIR / f"{model}.toml"
     if not sidecar.exists():
