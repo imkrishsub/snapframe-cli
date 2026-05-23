@@ -6,7 +6,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from .config import DeviceFrameConfig, FontConfig, ImageConfig, ScreenshotConfig, TemplateConfig
+from .config import DeviceFrameConfig, DeviceFrameTransformConfig, FontConfig, ImageConfig, ScreenshotConfig, TemplateConfig
 
 _FRAMES_DIR = Path(__file__).parent / "frames"
 
@@ -211,6 +211,56 @@ def add_shadow(
     result.paste(img, (pad, pad), img)
 
     return result
+
+
+def _apply_tilt(img: Image.Image, angle: float) -> Image.Image:
+    return img.rotate(-angle, expand=True, resample=Image.BICUBIC)
+
+
+_ISO_SIN = math.sin(math.radians(30))  # 0.5
+_ISO_COS = math.cos(math.radians(30))  # 0.866
+_ISO_TAN = math.tan(math.radians(30))  # 0.577
+
+
+def _apply_iso(img: Image.Image, variant: str) -> Image.Image:
+    w, h = img.size
+    out_w = int(w + h * _ISO_SIN)
+    out_h = int(h * _ISO_COS)
+    if variant == "left":
+        coeffs = (1, _ISO_TAN, -h * _ISO_SIN, 0, 1 / _ISO_COS, 0)
+    else:
+        coeffs = (1, -_ISO_TAN, 0, 0, 1 / _ISO_COS, 0)
+    return img.transform((out_w, out_h), Image.AFFINE, coeffs, resample=Image.BICUBIC)
+
+
+# QUAD source corners as (w_frac, h_frac) pairs:
+# order = (output-UL, output-LL, output-LR, output-UR)
+_FLOAT_PRESETS: dict[str, tuple[float, ...]] = {
+    "left-lean":  (0.10, 0.00,  0.00, 1.00,  1.00, 1.00,  0.90, 0.12),
+    "right-lean": (0.00, 0.12,  0.00, 1.00,  1.00, 1.00,  0.90, 0.00),
+}
+
+
+def _apply_float(img: Image.Image, preset: str) -> Image.Image:
+    fracs = _FLOAT_PRESETS.get(preset, _FLOAT_PRESETS["left-lean"])
+    w, h = img.size
+    data = (
+        fracs[0] * w, fracs[1] * h,
+        fracs[2] * w, fracs[3] * h,
+        fracs[4] * w, fracs[5] * h,
+        fracs[6] * w, fracs[7] * h,
+    )
+    return img.transform((w, h), Image.QUAD, data, resample=Image.BICUBIC)
+
+
+def apply_transform(img: Image.Image, transform: DeviceFrameTransformConfig) -> Image.Image:
+    if transform.mode == "tilt":
+        return _apply_tilt(img, transform.tilt_angle)
+    if transform.mode == "iso":
+        return _apply_iso(img, transform.iso_variant)
+    if transform.mode == "float":
+        return _apply_float(img, transform.float_preset)
+    return img
 
 
 def _load_frame_spec(model: str) -> dict:
@@ -486,6 +536,14 @@ def render_hero(
             project_root,
             device_frame=template.device_frame,
         )
+
+        if (
+            template.device_frame
+            and template.device_frame.enabled
+            and template.device_frame.transform.mode != "none"
+        ):
+            ss_img = apply_transform(ss_img, template.device_frame.transform)
+            content_w, content_h = ss_img.size
 
         shadow_pad = template.screenshot.shadow_blur * 2 if template.screenshot.shadow else 0
         sx = ss_x1 + (ss_w - content_w) // 2 - shadow_pad

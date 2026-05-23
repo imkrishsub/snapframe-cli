@@ -37,10 +37,19 @@ class ScreenshotConfig:
 
 
 @dataclass
+class DeviceFrameTransformConfig:
+    mode: str = "none"               # "none" | "tilt" | "iso" | "float"
+    tilt_angle: float = -15.0        # degrees, -45 to +45
+    iso_variant: str = "left"        # "left" | "right"
+    float_preset: str = "left-lean"  # "left-lean" | "right-lean"
+
+
+@dataclass
 class DeviceFrameConfig:
     enabled: bool = False
     model: str = "iphone-15-pro"
     finish: str = "black"
+    transform: DeviceFrameTransformConfig = field(default_factory=DeviceFrameTransformConfig)
 
 
 @dataclass
@@ -126,6 +135,18 @@ def _make_device_frame(d: dict) -> DeviceFrameConfig:
         cfg.model = d["model"]
     if "finish" in d:
         cfg.finish = d["finish"]
+    if "transform" in d:
+        t = d["transform"]
+        tx = DeviceFrameTransformConfig()
+        if "mode" in t:
+            tx.mode = t["mode"]
+        if "tilt_angle" in t:
+            tx.tilt_angle = float(t["tilt_angle"])
+        if "iso_variant" in t:
+            tx.iso_variant = t["iso_variant"]
+        if "float_preset" in t:
+            tx.float_preset = t["float_preset"]
+        cfg.transform = tx
     return cfg
 
 

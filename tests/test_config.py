@@ -3,6 +3,7 @@ import pytest
 from snapframe.config import (
     BackgroundConfig,
     DeviceFrameConfig,
+    DeviceFrameTransformConfig,
     FontConfig,
     ImageConfig,
     ScreenshotConfig,
@@ -212,3 +213,38 @@ def test_image_config_accepts_all_fields():
     assert cfg.title == "My App"
     assert cfg.screenshot == "screens/main.png"
     assert cfg.output == "out.png"
+
+
+def test_device_frame_transform_config_defaults():
+    cfg = DeviceFrameTransformConfig()
+    assert cfg.mode == "none"
+    assert cfg.tilt_angle == -15.0
+    assert cfg.iso_variant == "left"
+    assert cfg.float_preset == "left-lean"
+
+
+def test_device_frame_config_has_transform_field():
+    cfg = DeviceFrameConfig()
+    assert hasattr(cfg, "transform")
+    assert cfg.transform.mode == "none"
+
+
+def test_make_device_frame_parses_nested_transform():
+    cfg = _make_device_frame({"transform": {"mode": "tilt", "tilt_angle": 20.0}})
+    assert cfg.transform.mode == "tilt"
+    assert cfg.transform.tilt_angle == 20.0
+
+
+def test_make_device_frame_transform_defaults_when_absent():
+    cfg = _make_device_frame({})
+    assert cfg.transform.mode == "none"
+
+
+def test_make_device_frame_parses_iso_variant():
+    cfg = _make_device_frame({"transform": {"mode": "iso", "iso_variant": "right"}})
+    assert cfg.transform.iso_variant == "right"
+
+
+def test_make_device_frame_parses_float_preset():
+    cfg = _make_device_frame({"transform": {"mode": "float", "float_preset": "right-lean"}})
+    assert cfg.transform.float_preset == "right-lean"
