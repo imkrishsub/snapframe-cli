@@ -64,7 +64,7 @@ shadow_opacity = 0.4
 scale = 0.75
 """
 
-APPSTORE_IPHONE_67_TOML = """\
+APPSTORE_IPHONE_69_TOML = """\
 size = [1320, 2868]
 layout = "hero"
 padding = 100
@@ -120,7 +120,7 @@ shadow_opacity = 0.5
 scale = 0.85
 """
 
-APPSTORE_IPAD_129_TOML = """\
+APPSTORE_IPAD_13_TOML = """\
 size = [2064, 2752]
 layout = "hero"
 padding = 160
@@ -218,9 +218,9 @@ def init(project_dir: str):
         root / "snapframe.toml": PROJECT_TOML,
         root / "templates" / "hero-og.toml": HERO_OG_TOML,
         root / "templates" / "hero-square.toml": HERO_SQUARE_TOML,
-        root / "templates" / "appstore" / "iphone-67.toml": APPSTORE_IPHONE_67_TOML,
+        root / "templates" / "appstore" / "iphone-69.toml": APPSTORE_IPHONE_69_TOML,
         root / "templates" / "appstore" / "iphone-65.toml": APPSTORE_IPHONE_65_TOML,
-        root / "templates" / "appstore" / "ipad-129.toml": APPSTORE_IPAD_129_TOML,
+        root / "templates" / "appstore" / "ipad-13.toml": APPSTORE_IPAD_13_TOML,
         root / "templates" / "appstore" / "ipad-11.toml": APPSTORE_IPAD_11_TOML,
     }
 
