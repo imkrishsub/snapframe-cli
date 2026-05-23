@@ -6,3 +6,6 @@ build/
 .venv/
 test/
 .worktrees/
+.superpowers/
+.claude/
+docs/superpowers/
