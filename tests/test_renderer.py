@@ -1,4 +1,12 @@
-from snapframe.renderer import FINISH_PRESETS, generate_frame
+from pathlib import Path
+
+import pytest
+
+from snapframe.config import ImageConfig, TemplateConfig
+from snapframe.renderer import _FRAMES_DIR, FINISH_PRESETS, generate_frame, render
+
+# Discovered at import time so pytest.mark.parametrize can use it.
+ALL_MODELS = sorted(p.stem for p in _FRAMES_DIR.glob("*.toml"))
 
 
 def test_finish_presets_keys():
@@ -41,14 +49,20 @@ def test_generate_frame_ipad_does_not_crash():
     assert img is not None
 
 
-def test_generate_frame_iphone_has_dynamic_island_pixels():
-    """The DI pill area should be near-black (drawn on top of the transparent screen cutout)."""
+def test_dynamic_island_area_is_inside_transparent_screen_cutout():
+    """DI pill rendering was removed so the screenshot's native DI shows through cleanly.
+
+    The DI centre sits well inside the screen cutout rectangle, so its alpha
+    channel must be 0 — any opaque pixel there would duplicate the DI already
+    present in a Simulator screenshot.
+    """
     img, _ = generate_frame("iphone-16-pro", 402, 874)
-    # scale ≈ 1.0, btn_w = max(2, int(3*1.0)) = 3
-    # DI spec: x=138, w=126 → centre_x = (138 + 3) + 63 = 204; y=14, h=37 → centre_y = 14 + 18 = 32
+    # scale = 1.0, btn_w = 3
+    # DI spec: x=138, w=126 → centre_x = (138 + 3) + 63 = 204
+    #          y=14,  h=37  → centre_y = 14 + 18 = 32
+    # Screen cutout x∈[17,390], y∈[14,859] — (204,32) is clearly inside.
     pixel = img.getpixel((204, 32))
-    assert pixel[3] > 0, "Dynamic Island area should be opaque"
-    assert pixel[0] < 20 and pixel[1] < 20 and pixel[2] < 20, "Should be near-black"
+    assert pixel[3] == 0, "DI area is part of the transparent screen cutout"
 
 
 def test_generate_frame_image_wider_than_frame_body():
@@ -67,3 +81,110 @@ def test_generate_frame_screen_rect_sx_is_offset():
     scale = min(400 / 402, 800 / 874)
     raw_sx = int(14 * scale)   # spec screen.x = 14
     assert sx > raw_sx, "sx should be offset by btn_w"
+
+
+# ── FINISH_PRESETS: border-color pixel round-trip ─────────────────────────────
+
+@pytest.mark.parametrize("finish,expected_rgb", [
+    ("black",            (0x1C, 0x1C, 0x1E)),
+    ("matte-gray",       (0x48, 0x48, 0x4A)),
+    ("natural-titanium", (0x8E, 0x8E, 0x93)),
+])
+def test_frame_border_pixel_matches_finish_color(finish, expected_rgb):
+    """A pixel on the left frame wall carries the exact border hex from the preset.
+
+    Geometry for iphone-16-pro at 400×800:
+      scale = 800/874 ≈ 0.9153, btn_w = 2, sx ≈ 14
+      x=5 is inside the frame body (btn_w=2) and left of the screen cutout (sx≈14).
+      y=400 is mid-frame, far from any corner.
+    """
+    img, _ = generate_frame("iphone-16-pro", 400, 800, finish=finish)
+    pixel = img.getpixel((5, 400))
+    assert pixel[:3] == expected_rgb
+    assert pixel[3] == 255  # fully opaque
+
+
+def test_different_finishes_have_different_border_colors():
+    """Each finish should produce a visually distinct frame color at the same pixel."""
+    img_black, _ = generate_frame("iphone-16-pro", 400, 800, finish="black")
+    img_ti, _    = generate_frame("iphone-16-pro", 400, 800, finish="natural-titanium")
+    assert img_black.getpixel((5, 400))[:3] != img_ti.getpixel((5, 400))[:3]
+
+
+# ── Invalid model ─────────────────────────────────────────────────────────────
+
+def test_invalid_model_raises_value_error():
+    with pytest.raises(ValueError, match="Unknown device frame model"):
+        generate_frame("not-a-real-phone", 400, 800)
+
+
+# ── Every available model ─────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("model", ALL_MODELS)
+def test_every_model_produces_valid_rgba_output(model):
+    """All TOML frame specs load and render without error."""
+    img, (sx, sy, sw, sh, _) = generate_frame(model, 400, 800)
+    assert img.mode == "RGBA"
+    assert img.width > 0 and img.height > 0
+    assert sw > 0 and sh > 0
+
+
+# ── Screen cutout transparency ────────────────────────────────────────────────
+
+def test_screen_cutout_center_is_transparent():
+    """The midpoint of the screen area must be alpha=0 so screenshots show through."""
+    img, (sx, sy, sw, sh, _) = generate_frame("iphone-16-pro", 400, 800)
+    cx = sx + sw // 2
+    cy = sy + sh // 2
+    assert img.getpixel((cx, cy))[3] == 0
+
+
+def test_ipad_screen_cutout_center_is_transparent():
+    """iPad Pro frame (no Dynamic Island, rectangular cutout) should also be transparent."""
+    img, (sx, sy, sw, sh, _) = generate_frame("ipad-pro-12-9", 400, 800)
+    cx = sx + sw // 2
+    cy = sy + sh // 2
+    assert img.getpixel((cx, cy))[3] == 0
+
+
+def test_pro_model_screen_has_positive_corner_radius():
+    """Pro iPhones define a screen corner radius; it should survive scaling."""
+    _, (_, _, _, _, screen_cr) = generate_frame("iphone-16-pro", 400, 800)
+    assert screen_cr > 0
+
+
+# ── render() integration ──────────────────────────────────────────────────────
+
+def test_render_hero_without_screenshot_returns_rgb_at_canvas_size():
+    """render() with no screenshot produces an RGB canvas at the configured size."""
+    template = TemplateConfig()          # size=(1200, 630), layout="hero"
+    image_config = ImageConfig(title="Hello World")   # screenshot=None → no file I/O
+    result = render(template, image_config, Path("."))
+    assert result.mode == "RGB"
+    assert result.size == (1200, 630)
+
+
+def test_render_hero_respects_custom_canvas_size():
+    template = TemplateConfig()
+    template.size = (800, 400)
+    image_config = ImageConfig(title="Custom Size")
+    result = render(template, image_config, Path("."))
+    assert result.size == (800, 400)
+
+
+@pytest.mark.parametrize("position", ["top", "bottom", "left", "right"])
+def test_render_hero_all_text_positions_return_correct_canvas_size(position):
+    """All four text-position variants must produce a canvas at exactly the configured size."""
+    template = TemplateConfig()
+    template.text.position = position
+    image_config = ImageConfig(title="Layout test")
+    result = render(template, image_config, Path("."))
+    assert result.size == (1200, 630)
+
+
+def test_render_unknown_layout_raises_value_error():
+    template = TemplateConfig()
+    template.layout = "grid"
+    image_config = ImageConfig(title="Test")
+    with pytest.raises(ValueError, match="Unknown layout"):
+        render(template, image_config, Path("."))
