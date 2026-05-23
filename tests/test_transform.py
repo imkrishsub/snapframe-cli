@@ -99,14 +99,16 @@ def test_apply_transform_iso():
     img = _rgba(200, 400)
     cfg = DeviceFrameTransformConfig(mode="iso", iso_variant="left")
     result = apply_transform(img, cfg)
-    assert result.size != img.size
+    expected_w = int(200 + 400 * math.sin(math.radians(30)))
+    expected_h = int(400 * math.cos(math.radians(30)))
+    assert result.size == (expected_w, expected_h)
 
 
 def test_apply_transform_float():
     img = _rgba(200, 400)
     cfg = DeviceFrameTransformConfig(mode="float", float_preset="left-lean")
     result = apply_transform(img, cfg)
-    assert result.mode == "RGBA"
+    assert result.size == img.size
 
 
 def test_apply_transform_none():
