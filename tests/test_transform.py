@@ -4,7 +4,7 @@ import pytest
 from PIL import Image
 
 from snapframe.config import DeviceFrameTransformConfig
-from snapframe.renderer import _apply_tilt, _apply_iso
+from snapframe.renderer import _apply_tilt, _apply_iso, _apply_float
 
 # apply_transform will be added in Task 5
 
@@ -67,3 +67,22 @@ def test_apply_iso_output_dimensions():
     expected_w = int(100 + 200 * math.sin(math.radians(30)))
     expected_h = int(200 * math.cos(math.radians(30)))
     assert result.size == (expected_w, expected_h)
+
+
+# ── _apply_float ──────────────────────────────────────────────────────────────
+
+def test_apply_float_returns_rgba():
+    result = _apply_float(_rgba(200, 400), "left-lean")
+    assert result.mode == "RGBA"
+
+
+def test_apply_float_preserves_size():
+    img = _rgba(200, 400)
+    for preset in ("left-lean", "right-lean"):
+        assert _apply_float(img, preset).size == img.size
+
+
+def test_apply_float_unknown_preset_does_not_raise():
+    result = _apply_float(_rgba(200, 400), "nonexistent")
+    assert result is not None
+    assert result.size == (200, 400)

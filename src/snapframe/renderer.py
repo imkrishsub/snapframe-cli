@@ -233,6 +233,26 @@ def _apply_iso(img: Image.Image, variant: str) -> Image.Image:
     return img.transform((out_w, out_h), Image.AFFINE, coeffs, resample=Image.BICUBIC)
 
 
+# QUAD source corners as (w_frac, h_frac) pairs:
+# order = (output-UL, output-LL, output-LR, output-UR)
+_FLOAT_PRESETS: dict[str, tuple[float, ...]] = {
+    "left-lean":  (0.10, 0.00,  0.00, 1.00,  1.00, 1.00,  0.90, 0.12),
+    "right-lean": (0.00, 0.12,  0.00, 1.00,  1.00, 1.00,  0.90, 0.00),
+}
+
+
+def _apply_float(img: Image.Image, preset: str) -> Image.Image:
+    fracs = _FLOAT_PRESETS.get(preset, _FLOAT_PRESETS["left-lean"])
+    w, h = img.size
+    data = (
+        fracs[0] * w, fracs[1] * h,
+        fracs[2] * w, fracs[3] * h,
+        fracs[4] * w, fracs[5] * h,
+        fracs[6] * w, fracs[7] * h,
+    )
+    return img.transform((w, h), Image.QUAD, data, resample=Image.BICUBIC)
+
+
 def _load_frame_spec(model: str) -> dict:
     sidecar = _FRAMES_DIR / f"{model}.toml"
     if not sidecar.exists():
