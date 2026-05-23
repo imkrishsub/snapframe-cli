@@ -6,7 +6,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from .config import DeviceFrameConfig, FontConfig, ImageConfig, ScreenshotConfig, TemplateConfig
+from .config import DeviceFrameConfig, DeviceFrameTransformConfig, FontConfig, ImageConfig, ScreenshotConfig, TemplateConfig
 
 _FRAMES_DIR = Path(__file__).parent / "frames"
 
@@ -251,6 +251,16 @@ def _apply_float(img: Image.Image, preset: str) -> Image.Image:
         fracs[6] * w, fracs[7] * h,
     )
     return img.transform((w, h), Image.QUAD, data, resample=Image.BICUBIC)
+
+
+def apply_transform(img: Image.Image, transform: DeviceFrameTransformConfig) -> Image.Image:
+    if transform.mode == "tilt":
+        return _apply_tilt(img, transform.tilt_angle)
+    if transform.mode == "iso":
+        return _apply_iso(img, transform.iso_variant)
+    if transform.mode == "float":
+        return _apply_float(img, transform.float_preset)
+    return img
 
 
 def _load_frame_spec(model: str) -> dict:
@@ -526,6 +536,14 @@ def render_hero(
             project_root,
             device_frame=template.device_frame,
         )
+
+        if (
+            template.device_frame
+            and template.device_frame.enabled
+            and template.device_frame.transform.mode != "none"
+        ):
+            ss_img = apply_transform(ss_img, template.device_frame.transform)
+            content_w, content_h = ss_img.size
 
         shadow_pad = template.screenshot.shadow_blur * 2 if template.screenshot.shadow else 0
         sx = ss_x1 + (ss_w - content_w) // 2 - shadow_pad
