@@ -213,6 +213,10 @@ def add_shadow(
     return result
 
 
+def _apply_tilt(img: Image.Image, angle: float) -> Image.Image:
+    return img.rotate(-angle, expand=True, resample=Image.BICUBIC)
+
+
 def _load_frame_spec(model: str) -> dict:
     sidecar = _FRAMES_DIR / f"{model}.toml"
     if not sidecar.exists():
