@@ -539,6 +539,10 @@ def render_hero(
             device_frame=template.device_frame,
         )
 
+        # Save pre-transform, shadow-free frame dimensions for layout_info
+        content_w_visual = content_w
+        content_h_visual = content_h
+
         if (
             template.device_frame
             and template.device_frame.enabled
@@ -569,8 +573,8 @@ def render_hero(
             layout_info = {
                 "device_x": dev_x,
                 "device_y": dev_y,
-                "device_w": content_w,
-                "device_h": content_h,
+                "device_w": content_w_visual,
+                "device_h": content_h_visual,
                 "ss_x1": ss_x1,
                 "ss_y1": ss_y1,
                 "ss_x2": ss_x2,
