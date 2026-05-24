@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from snapframe.config import ImageConfig, TemplateConfig
-from snapframe.renderer import _FRAMES_DIR, FINISH_PRESETS, generate_frame, render, render_with_bounds
+from snapframe.renderer import _DEVICE_MIN_SLIVER, _FRAMES_DIR, FINISH_PRESETS, generate_frame, render, render_with_bounds
 
 # Discovered at import time so pytest.mark.parametrize can use it.
 ALL_MODELS = sorted(p.stem for p in _FRAMES_DIR.glob("*.toml"))
@@ -235,3 +235,103 @@ def test_canvas_clamp_allows_device_past_ss_region(tmp_path):
     assert device_x > ss_x2 - device_w, (
         f"device_x={device_x} should exceed ss_x2-device_w={ss_x2 - device_w}"
     )
+
+
+def test_device_can_go_off_left_edge(tmp_path):
+    """Large negative offset_x places dev_x below zero (device clips off left edge).
+
+    Uses "right" text-position layout: ss occupies left 60% of the 1200-wide canvas,
+    so ss_x1=0, ss_x2=720, ss_w=720. offset_x=-3.0 produces a very negative dev_x
+    that the new clamp allows down to -(content_w - _DEVICE_MIN_SLIVER).
+    """
+    from PIL import Image as _PILImage
+    ss_img = _PILImage.new("RGBA", (300, 600), (0, 128, 255, 255))
+    ss_path = tmp_path / "screen.png"
+    ss_img.save(ss_path)
+
+    template = TemplateConfig()
+    template.text.position = "right"
+    template.screenshot.offset_x = -3.0
+    template.screenshot.shadow = False
+    template.device_frame.enabled = True
+    image_config = ImageConfig(title="Left edge test", screenshot=str(ss_path))
+
+    _, layout_info = render_with_bounds(template, image_config, tmp_path)
+
+    assert layout_info is not None
+    device_x = layout_info["device_x"]
+    device_w = layout_info["device_w"]
+
+    assert device_x < 0, f"expected dev_x < 0, got {device_x}"
+    assert device_x >= -(device_w - _DEVICE_MIN_SLIVER), (
+        f"sliver violated: dev_x={device_x}, -(device_w - sliver)={-(device_w - _DEVICE_MIN_SLIVER)}"
+    )
+
+
+def test_device_can_go_off_right_edge(tmp_path):
+    """Large positive offset_x places dev_x beyond width-content_w (clips off right edge).
+
+    Uses "right" text-position layout: ss_w=720, canvas width=1200. offset_x=3.0
+    produces a very large dev_x that the new clamp allows up to width - _DEVICE_MIN_SLIVER.
+    """
+    from PIL import Image as _PILImage
+    ss_img = _PILImage.new("RGBA", (300, 600), (0, 128, 255, 255))
+    ss_path = tmp_path / "screen.png"
+    ss_img.save(ss_path)
+
+    template = TemplateConfig()
+    template.text.position = "right"
+    template.screenshot.offset_x = 3.0
+    template.screenshot.shadow = False
+    template.device_frame.enabled = True
+    image_config = ImageConfig(title="Right edge test", screenshot=str(ss_path))
+
+    _, layout_info = render_with_bounds(template, image_config, tmp_path)
+
+    assert layout_info is not None
+    width = template.size[0]   # 1200
+    device_x = layout_info["device_x"]
+    device_w = layout_info["device_w"]
+
+    assert device_x > width - device_w, (
+        f"expected dev_x > width-device_w={width - device_w}, got {device_x}"
+    )
+    assert device_x <= width - _DEVICE_MIN_SLIVER, (
+        f"sliver violated: dev_x={device_x}, width-sliver={width - _DEVICE_MIN_SLIVER}"
+    )
+
+
+def test_sliver_preserved_on_all_edges(tmp_path):
+    """Extreme offsets in all four directions all respect the 40 px sliver and render without error."""
+    from PIL import Image as _PILImage
+    ss_img = _PILImage.new("RGBA", (300, 600), (0, 128, 255, 255))
+    ss_path = tmp_path / "screen.png"
+    ss_img.save(ss_path)
+
+    for offset_x, offset_y in [(-4.0, 0.0), (4.0, 0.0), (0.0, -4.0), (0.0, 4.0)]:
+        template = TemplateConfig()
+        template.text.position = "right"
+        template.screenshot.offset_x = offset_x
+        template.screenshot.offset_y = offset_y
+        template.screenshot.shadow = False
+        template.device_frame.enabled = True
+        image_config = ImageConfig(
+            title=f"Sliver test ({offset_x},{offset_y})",
+            screenshot=str(ss_path),
+        )
+
+        img, layout_info = render_with_bounds(template, image_config, tmp_path)
+
+        assert img is not None
+        assert layout_info is not None
+
+        width, height = template.size
+        dx = layout_info["device_x"]
+        dy = layout_info["device_y"]
+        dw = layout_info["device_w"]
+        dh = layout_info["device_h"]
+
+        assert dx >= -(dw - _DEVICE_MIN_SLIVER), f"left sliver violated at offset ({offset_x},{offset_y})"
+        assert dx <= width  - _DEVICE_MIN_SLIVER, f"right sliver violated at offset ({offset_x},{offset_y})"
+        assert dy >= -(dh - _DEVICE_MIN_SLIVER), f"top sliver violated at offset ({offset_x},{offset_y})"
+        assert dy <= height - _DEVICE_MIN_SLIVER, f"bottom sliver violated at offset ({offset_x},{offset_y})"

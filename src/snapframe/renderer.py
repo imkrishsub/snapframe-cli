@@ -16,6 +16,8 @@ FINISH_PRESETS: dict[str, dict[str, str]] = {
     "natural-titanium": {"border": "#8e8e93", "highlight": "#b0b0b5", "button": "#7a7a80"},
 }
 
+_DEVICE_MIN_SLIVER = 40  # px — minimum on-canvas sliver when device is dragged off an edge
+
 
 def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     hex_color = hex_color.lstrip("#")
@@ -560,9 +562,9 @@ def render_hero(
         dev_x = ss_x1 + (ss_w - content_w) // 2 + int(offset_x * ss_w / 2)
         dev_y = ss_y1 + (ss_h - content_h) // 2 + int(offset_y * ss_h / 2)
 
-        # Clamp: keep device within canvas so Pillow paste stays in bounds
-        dev_x = max(0, min(width - content_w, dev_x))
-        dev_y = max(0, min(height - content_h, dev_y))
+        # Clamp: allow partial off-canvas while keeping a minimum sliver visible
+        dev_x = max(-(content_w - _DEVICE_MIN_SLIVER), min(width - _DEVICE_MIN_SLIVER, dev_x))
+        dev_y = max(-(content_h - _DEVICE_MIN_SLIVER), min(height - _DEVICE_MIN_SLIVER, dev_y))
 
         sx = dev_x - shadow_pad
         sy = dev_y - shadow_pad
