@@ -527,6 +527,8 @@ def render_hero(
         draw.text((x, y), line, font=font, fill=font_color)
 
     # Draw screenshot
+    layout_info = None
+
     if has_screenshot:
         ss_img, (content_w, content_h) = _load_screenshot(
             image_config.screenshot,
@@ -537,6 +539,10 @@ def render_hero(
             device_frame=template.device_frame,
         )
 
+        # Save pre-transform, shadow-free frame dimensions for layout_info
+        content_w_visual = content_w
+        content_h_visual = content_h
+
         if (
             template.device_frame
             and template.device_frame.enabled
@@ -546,12 +552,47 @@ def render_hero(
             content_w, content_h = ss_img.size
 
         shadow_pad = template.screenshot.shadow_blur * 2 if template.screenshot.shadow else 0
-        sx = ss_x1 + (ss_w - content_w) // 2 - shadow_pad
-        sy = ss_y1 + (ss_h - content_h) // 2 - shadow_pad
+
+        offset_x = template.screenshot.offset_x if (template.device_frame and template.device_frame.enabled) else 0.0
+        offset_y = template.screenshot.offset_y if (template.device_frame and template.device_frame.enabled) else 0.0
+
+        # Device top-left without shadow
+        dev_x = ss_x1 + (ss_w - content_w) // 2 + int(offset_x * ss_w / 2)
+        dev_y = ss_y1 + (ss_h - content_h) // 2 + int(offset_y * ss_h / 2)
+
+        # Clamp: keep device within screenshot region
+        dev_x = max(ss_x1, min(ss_x2 - content_w, dev_x))
+        dev_y = max(ss_y1, min(ss_y2 - content_h, dev_y))
+
+        sx = dev_x - shadow_pad
+        sy = dev_y - shadow_pad
 
         result.paste(ss_img, (sx, sy), ss_img)
 
-    return result.convert("RGB")
+        if template.device_frame and template.device_frame.enabled:
+            layout_info = {
+                "device_x": dev_x,
+                "device_y": dev_y,
+                "device_w": content_w_visual,
+                "device_h": content_h_visual,
+                "ss_x1": ss_x1,
+                "ss_y1": ss_y1,
+                "ss_x2": ss_x2,
+                "ss_y2": ss_y2,
+            }
+
+    return result.convert("RGB"), layout_info
+
+
+def render_with_bounds(
+    template: TemplateConfig,
+    image_config: ImageConfig,
+    project_root: Path,
+) -> tuple[Image.Image, dict | None]:
+    if template.layout == "hero":
+        return render_hero(template, image_config, project_root)
+    else:
+        raise ValueError(f"Unknown layout: '{template.layout}'")
 
 
 def render(
@@ -559,7 +600,5 @@ def render(
     image_config: ImageConfig,
     project_root: Path,
 ) -> Image.Image:
-    if template.layout == "hero":
-        return render_hero(template, image_config, project_root)
-    else:
-        raise ValueError(f"Unknown layout: '{template.layout}'")
+    img, _ = render_with_bounds(template, image_config, project_root)
+    return img
