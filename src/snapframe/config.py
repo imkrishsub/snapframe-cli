@@ -34,6 +34,8 @@ class ScreenshotConfig:
     shadow_blur: int = 30
     shadow_opacity: float = 0.4
     scale: float = 0.70
+    offset_x: float = 0.0
+    offset_y: float = 0.0
 
 
 @dataclass
@@ -124,6 +126,10 @@ def _make_screenshot(d: dict) -> ScreenshotConfig:
         cfg.shadow_opacity = d["shadow_opacity"]
     if "scale" in d:
         cfg.scale = d["scale"]
+    if "offset_x" in d:
+        cfg.offset_x = float(d["offset_x"])
+    if "offset_y" in d:
+        cfg.offset_y = float(d["offset_y"])
     return cfg
 
 
