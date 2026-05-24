@@ -200,11 +200,11 @@ def test_no_screenshot_yields_no_layout_info():
 
 
 def test_canvas_clamp_allows_device_past_ss_region(tmp_path):
-    """layout_info.device_x stays within canvas even when offset pushes past ss_x2.
+    """Device frame can extend past the screenshot region boundary with sliver preserved.
 
     Uses a "right" text-position layout where the screenshot region ends at ~60% of
-    canvas width. With offset_x=3.0 the device would exceed ss_x2 under the old clamp;
-    the canvas clamp ensures device_x stays within 0..width-device_w.
+    canvas width. With offset_x=3.0 the device exceeds ss_x2; the sliver clamp allows
+    device_x up to width-40 (not just width-device_w) while keeping 40px on-canvas.
     """
     from PIL import Image as _PILImage
     ss_img = _PILImage.new("RGBA", (300, 600), (0, 128, 255, 255))
@@ -226,9 +226,13 @@ def test_canvas_clamp_allows_device_past_ss_region(tmp_path):
     device_w = layout_info["device_w"]
     ss_x2 = layout_info["ss_x2"]
 
-    # Frame stays within canvas bounds
-    assert device_x >= 0
-    assert device_x + device_w <= width
+    # Frame can go partially off-canvas but the sliver must be preserved
+    assert device_x >= -(device_w - _DEVICE_MIN_SLIVER), (
+        f"left sliver violated: device_x={device_x}"
+    )
+    assert device_x <= width - _DEVICE_MIN_SLIVER, (
+        f"right sliver violated: device_x={device_x}, width-sliver={width - _DEVICE_MIN_SLIVER}"
+    )
 
     # Frame moved past the right edge of the screenshot region
     # (which the old ss-region clamp would have prevented)
