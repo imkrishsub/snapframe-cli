@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from snapframe.config import ImageConfig, TemplateConfig
-from snapframe.renderer import _FRAMES_DIR, FINISH_PRESETS, generate_frame, render
+from snapframe.renderer import _FRAMES_DIR, FINISH_PRESETS, generate_frame, render, render_with_bounds
 
 # Discovered at import time so pytest.mark.parametrize can use it.
 ALL_MODELS = sorted(p.stem for p in _FRAMES_DIR.glob("*.toml"))
@@ -188,3 +188,50 @@ def test_render_unknown_layout_raises_value_error():
     image_config = ImageConfig(title="Test")
     with pytest.raises(ValueError, match="Unknown layout"):
         render(template, image_config, Path("."))
+
+
+def test_no_screenshot_yields_no_layout_info():
+    """render_with_bounds with no screenshot path returns None for layout_info."""
+    template = TemplateConfig()
+    template.device_frame.enabled = True
+    image_config = ImageConfig(title="Test")  # screenshot=None
+    _, layout_info = render_with_bounds(template, image_config, Path("."))
+    assert layout_info is None
+
+
+def test_canvas_clamp_allows_device_past_ss_region(tmp_path):
+    """layout_info.device_x stays within canvas even when offset pushes past ss_x2.
+
+    Uses a "right" text-position layout where the screenshot region ends at ~60% of
+    canvas width. With offset_x=3.0 the device would exceed ss_x2 under the old clamp;
+    the canvas clamp ensures device_x stays within 0..width-device_w.
+    """
+    from PIL import Image as _PILImage
+    ss_img = _PILImage.new("RGBA", (300, 600), (0, 128, 255, 255))
+    ss_path = tmp_path / "screen.png"
+    ss_img.save(ss_path)
+
+    template = TemplateConfig()
+    template.text.position = "right"   # screenshot on the left 60% of canvas
+    template.screenshot.offset_x = 3.0
+    template.screenshot.shadow = False
+    template.device_frame.enabled = True
+    image_config = ImageConfig(title="Clamp test", screenshot=str(ss_path))
+
+    _, layout_info = render_with_bounds(template, image_config, tmp_path)
+
+    assert layout_info is not None
+    width, height = template.size
+    device_x = layout_info["device_x"]
+    device_w = layout_info["device_w"]
+    ss_x2 = layout_info["ss_x2"]
+
+    # Frame stays within canvas bounds
+    assert device_x >= 0
+    assert device_x + device_w <= width
+
+    # Frame moved past the right edge of the screenshot region
+    # (which the old ss-region clamp would have prevented)
+    assert device_x > ss_x2 - device_w, (
+        f"device_x={device_x} should exceed ss_x2-device_w={ss_x2 - device_w}"
+    )

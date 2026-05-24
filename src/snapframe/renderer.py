@@ -560,9 +560,9 @@ def render_hero(
         dev_x = ss_x1 + (ss_w - content_w) // 2 + int(offset_x * ss_w / 2)
         dev_y = ss_y1 + (ss_h - content_h) // 2 + int(offset_y * ss_h / 2)
 
-        # Clamp: keep device within screenshot region
-        dev_x = max(ss_x1, min(ss_x2 - content_w, dev_x))
-        dev_y = max(ss_y1, min(ss_y2 - content_h, dev_y))
+        # Clamp: keep device within canvas so Pillow paste stays in bounds
+        dev_x = max(0, min(width - content_w, dev_x))
+        dev_y = max(0, min(height - content_h, dev_y))
 
         sx = dev_x - shadow_pad
         sy = dev_y - shadow_pad
