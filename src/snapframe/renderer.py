@@ -327,17 +327,17 @@ def projected_corners(
     if transform.mode == "iso":
         if transform.iso_variant == "left":
             raw = [
-                (pre_h * _ISO_SIN,              0),
-                (pre_w + pre_h * _ISO_SIN,      0),
-                (pre_w,                         pre_h * _ISO_COS),
-                (0,                             pre_h * _ISO_COS),
+                (int(pre_h * _ISO_SIN),              0),
+                (int(pre_w + pre_h * _ISO_SIN),      0),
+                (pre_w,                              int(pre_h * _ISO_COS)),
+                (0,                                  int(pre_h * _ISO_COS)),
             ]
         else:  # right
             raw = [
-                (0,                             0),
-                (pre_w,                         0),
-                (pre_w + pre_h * _ISO_SIN,      pre_h * _ISO_COS),
-                (pre_h * _ISO_SIN,              pre_h * _ISO_COS),
+                (0,                                  0),
+                (pre_w,                              0),
+                (int(pre_w + pre_h * _ISO_SIN),      int(pre_h * _ISO_COS)),
+                (int(pre_h * _ISO_SIN),              int(pre_h * _ISO_COS)),
             ]
         return [(dev_x + cx, dev_y + cy) for cx, cy in raw]
 
@@ -359,13 +359,17 @@ def projected_corners(
             ]
         return [(dev_x + cx, dev_y + cy) for cx, cy in raw]
 
-    # mode == "none" — axis-aligned bounding box
-    return [
-        (dev_x,           dev_y),
-        (dev_x + post_w,  dev_y),
-        (dev_x + post_w,  dev_y + post_h),
-        (dev_x,           dev_y + post_h),
-    ]
+    if transform.mode == "none":
+        return [
+            (dev_x,           dev_y),
+            (dev_x + post_w,  dev_y),
+            (dev_x + post_w,  dev_y + post_h),
+            (dev_x,           dev_y + post_h),
+        ]
+    raise ValueError(
+        f"Unknown transform mode {transform.mode!r}. "
+        f"Expected one of: 'none', 'tilt', 'iso', 'float'."
+    )
 
 
 def _load_frame_spec(model: str) -> dict:
