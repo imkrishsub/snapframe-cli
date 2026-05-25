@@ -361,10 +361,10 @@ def projected_corners(
 
     if transform.mode == "none":
         return [
-            (dev_x,           dev_y),
-            (dev_x + post_w,  dev_y),
-            (dev_x + post_w,  dev_y + post_h),
-            (dev_x,           dev_y + post_h),
+            (float(dev_x),           float(dev_y)),
+            (float(dev_x + post_w),  float(dev_y)),
+            (float(dev_x + post_w),  float(dev_y + post_h)),
+            (float(dev_x),           float(dev_y + post_h)),
         ]
     raise ValueError(
         f"Unknown transform mode {transform.mode!r}. "
