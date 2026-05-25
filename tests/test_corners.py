@@ -44,7 +44,7 @@ def test_tilt_90_tl_and_tr_share_x():
 def test_iso_left_tl_x_equals_pre_h_times_sin30():
     cfg = DeviceFrameTransformConfig(mode="iso", iso_variant="left")
     corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)  # post_w/post_h unused by iso transform
-    assert abs(corners[0][0] - 600 * _ISO_SIN) < 0.01
+    assert corners[0][0] == int(600 * _ISO_SIN)
 
 
 def test_iso_left_tr_x_equals_pre_w_plus_pre_h_times_sin30():
@@ -63,7 +63,7 @@ def test_iso_right_tl_is_at_origin():
 def test_iso_right_bl_x_equals_pre_h_times_sin30():
     cfg = DeviceFrameTransformConfig(mode="iso", iso_variant="right")
     corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)  # post_w/post_h unused by iso transform
-    assert abs(corners[3][0] - 600 * _ISO_SIN) < 0.01
+    assert corners[3][0] == int(600 * _ISO_SIN)
 
 
 def test_float_left_lean_tl_y_equals_factor_half_times_post_h():
