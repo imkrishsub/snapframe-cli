@@ -688,6 +688,12 @@ def render_hero(
                 "ss_y1": ss_y1,
                 "ss_x2": ss_x2,
                 "ss_y2": ss_y2,
+                "corners": projected_corners(
+                    template.device_frame.transform,
+                    content_w_visual, content_h_visual,
+                    content_w, content_h,
+                    dev_x, dev_y,
+                ),
             }
 
     return result.convert("RGB"), layout_info
