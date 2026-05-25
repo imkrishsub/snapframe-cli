@@ -302,6 +302,72 @@ def apply_transform(img: Image.Image, transform: DeviceFrameTransformConfig) -> 
     return img
 
 
+def projected_corners(
+    transform: DeviceFrameTransformConfig,
+    pre_w: int,
+    pre_h: int,
+    post_w: int,
+    post_h: int,
+    dev_x: int,
+    dev_y: int,
+) -> list[tuple[float, float]]:
+    """Return the 4 real device corners in canvas space (TL, TR, BR, BL)."""
+    if transform.mode == "tilt":
+        a = math.radians(transform.tilt_angle)
+        cx_in, cy_in = pre_w / 2, pre_h / 2
+        cx_out, cy_out = post_w / 2, post_h / 2
+        result = []
+        for x, y in [(0, 0), (pre_w, 0), (pre_w, pre_h), (0, pre_h)]:
+            dx, dy = x - cx_in, y - cy_in
+            rx = cx_out + math.cos(a) * dx + math.sin(a) * dy
+            ry = cy_out - math.sin(a) * dx + math.cos(a) * dy
+            result.append((dev_x + rx, dev_y + ry))
+        return result
+
+    if transform.mode == "iso":
+        if transform.iso_variant == "left":
+            raw = [
+                (pre_h * _ISO_SIN,              0),
+                (pre_w + pre_h * _ISO_SIN,      0),
+                (pre_w,                         pre_h * _ISO_COS),
+                (0,                             pre_h * _ISO_COS),
+            ]
+        else:  # right
+            raw = [
+                (0,                             0),
+                (pre_w,                         0),
+                (pre_w + pre_h * _ISO_SIN,      pre_h * _ISO_COS),
+                (pre_h * _ISO_SIN,              pre_h * _ISO_COS),
+            ]
+        return [(dev_x + cx, dev_y + cy) for cx, cy in raw]
+
+    if transform.mode == "float":
+        f = _FLOAT_PERSPECTIVE_FACTOR
+        if transform.float_preset == "right-lean":
+            raw = [
+                (0,       0),
+                (post_w,  f / 2 * post_h),
+                (post_w,  (1 - f / 2) * post_h),
+                (0,       post_h),
+            ]
+        else:  # left-lean (default)
+            raw = [
+                (0,       f / 2 * post_h),
+                (post_w,  0),
+                (post_w,  post_h),
+                (0,       (1 - f / 2) * post_h),
+            ]
+        return [(dev_x + cx, dev_y + cy) for cx, cy in raw]
+
+    # mode == "none" — axis-aligned bounding box
+    return [
+        (dev_x,           dev_y),
+        (dev_x + post_w,  dev_y),
+        (dev_x + post_w,  dev_y + post_h),
+        (dev_x,           dev_y + post_h),
+    ]
+
+
 def _load_frame_spec(model: str) -> dict:
     sidecar = _FRAMES_DIR / f"{model}.toml"
     if not sidecar.exists():
