@@ -1,8 +1,6 @@
 # tests/test_corners.py
 from __future__ import annotations
 
-import math
-
 import pytest
 from PIL import Image
 
@@ -27,28 +25,31 @@ def test_tilt_zero_same_as_none():
     img = Image.new("RGBA", (300, 600))
     post = _apply_tilt(img, 0.0)
     corners = projected_corners(cfg, 300, 600, post.width, post.height, 0, 0)
-    assert abs(corners[0][0] - 0) < 1
-    assert abs(corners[0][1] - 0) < 1
+    none_cfg = DeviceFrameTransformConfig(mode="none")
+    expected = projected_corners(none_cfg, 300, 600, post.width, post.height, 0, 0)
+    for i, ((cx, cy), (ex, ey)) in enumerate(zip(corners, expected)):
+        assert abs(cx - ex) < 1, f"corner {i} x mismatch"
+        assert abs(cy - ey) < 1, f"corner {i} y mismatch"
 
 
-def test_tilt_90_tl_and_tr_share_y():
-    # After 90° clockwise tilt the top edge becomes horizontal — TL and TR have same y
+def test_tilt_90_tl_and_tr_share_x():
+    # After 90° clockwise tilt the top edge becomes vertical — TL and TR share x
     cfg = DeviceFrameTransformConfig(mode="tilt", tilt_angle=90.0)
     img = Image.new("RGBA", (300, 600))
     post = _apply_tilt(img, 90.0)
     corners = projected_corners(cfg, 300, 600, post.width, post.height, 0, 0)
-    assert abs(corners[0][1] - corners[1][1]) < 2
+    assert abs(corners[0][0] - corners[1][0]) < 2
 
 
 def test_iso_left_tl_x_equals_pre_h_times_sin30():
     cfg = DeviceFrameTransformConfig(mode="iso", iso_variant="left")
-    corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)
+    corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)  # post_w/post_h unused by iso transform
     assert abs(corners[0][0] - 600 * _ISO_SIN) < 0.01
 
 
 def test_iso_left_tr_x_equals_pre_w_plus_pre_h_times_sin30():
     cfg = DeviceFrameTransformConfig(mode="iso", iso_variant="left")
-    corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)
+    corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)  # post_w/post_h unused by iso transform
     assert abs(corners[1][0] - (300 + 600 * _ISO_SIN)) < 0.01
 
 
@@ -61,7 +62,7 @@ def test_iso_right_tl_is_at_origin():
 
 def test_iso_right_bl_x_equals_pre_h_times_sin30():
     cfg = DeviceFrameTransformConfig(mode="iso", iso_variant="right")
-    corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)
+    corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)  # post_w/post_h unused by iso transform
     assert abs(corners[3][0] - 600 * _ISO_SIN) < 0.01
 
 
@@ -105,10 +106,14 @@ def test_all_modes_return_four_corners():
         assert len(result) == 4, f"expected 4 corners for mode={cfg.mode}"
 
 
-def test_corners_offset_by_dev_x_dev_y():
-    cfg = DeviceFrameTransformConfig(mode="none")
-    c1 = projected_corners(cfg, 100, 200, 100, 200, 0, 0)
-    c2 = projected_corners(cfg, 100, 200, 100, 200, 50, 30)
-    for (x1, y1), (x2, y2) in zip(c1, c2):
-        assert abs((x2 - x1) - 50) < 0.01
-        assert abs((y2 - y1) - 30) < 0.01
+@pytest.mark.parametrize("cfg", [
+    DeviceFrameTransformConfig(mode="none"),
+    DeviceFrameTransformConfig(mode="iso", iso_variant="left"),
+    DeviceFrameTransformConfig(mode="float", float_preset="left-lean"),
+])
+def test_corners_offset_by_dev_x_dev_y(cfg):
+    c1 = projected_corners(cfg, 300, 600, 300, 600, 0, 0)
+    c2 = projected_corners(cfg, 300, 600, 300, 600, 50, 30)
+    for i, ((x1, y1), (x2, y2)) in enumerate(zip(c1, c2)):
+        assert abs((x2 - x1) - 50) < 0.01, f"corner {i} x offset wrong for {cfg.mode}"
+        assert abs((y2 - y1) - 30) < 0.01, f"corner {i} y offset wrong for {cfg.mode}"
