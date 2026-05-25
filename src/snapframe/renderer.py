@@ -235,24 +235,61 @@ def _apply_iso(img: Image.Image, variant: str) -> Image.Image:
     return img.transform((out_w, out_h), Image.AFFINE, coeffs, resample=Image.BICUBIC)
 
 
-# QUAD source corners as (w_frac, h_frac) pairs:
-# order = (output-UL, output-LL, output-LR, output-UR)
-_FLOAT_PRESETS: dict[str, tuple[float, ...]] = {
-    "left-lean":  (0.10, 0.00,  0.00, 1.00,  1.00, 1.00,  0.90, 0.12),
-    "right-lean": (0.00, 0.12,  0.00, 1.00,  1.00, 1.00,  0.90, 0.00),
-}
+# Perspective factor: fraction of height that is vertically compressed on the
+# "receding" side.  0.20 ≈ 20 % foreshortening — the receding edge appears at
+# 80 % of the facing edge's height.
+_FLOAT_PERSPECTIVE_FACTOR = 0.20
+
+
+def _float_perspective_coeffs(w: int, h: int, f: float) -> tuple[float, ...]:
+    """Return the 8 Pillow PERSPECTIVE coefficients for a left-lean float effect.
+
+    The transform maps the full source rectangle to a trapezoid where the left
+    edge is compressed by factor *f* and the right edge remains full height:
+
+        src corner  →  dst position
+        (0, 0)      →  (0,    h·f/2)        top-left shifts down
+        (w, 0)      →  (w,    0)            top-right stays
+        (w, h)      →  (w,    h)            bottom-right stays
+        (0, h)      →  (0,    h·(1−f/2))   bottom-left shifts up
+
+    Pillow PERSPECTIVE solves the inverse:
+        x_src = (a·x + b·y + c) / (g·x + h_c·y + 1)
+        y_src = (d·x + e·y + fc) / (g·x + h_c·y + 1)
+
+    Coefficients derived analytically from the four dst→src correspondences.
+    """
+    inv = 1.0 / (1.0 - f)
+    a_c  =  inv
+    b_c  =  0.0
+    c_c  =  0.0
+    d_c  =  h * f / (2.0 * w * (1.0 - f))
+    e_c  =  inv
+    f_c  = -(h * f) / (2.0 * (1.0 - f))
+    g_c  =  f / (w * (1.0 - f))
+    h_c  =  0.0
+    return (a_c, b_c, c_c, d_c, e_c, f_c, g_c, h_c)
 
 
 def _apply_float(img: Image.Image, preset: str) -> Image.Image:
-    fracs = _FLOAT_PRESETS.get(preset, _FLOAT_PRESETS["left-lean"])
-    w, h = img.size
-    data = (
-        fracs[0] * w, fracs[1] * h,
-        fracs[2] * w, fracs[3] * h,
-        fracs[4] * w, fracs[5] * h,
-        fracs[6] * w, fracs[7] * h,
-    )
-    return img.transform((w, h), Image.QUAD, data, resample=Image.BICUBIC)
+    """Apply perspective foreshortening for a floating-device look.
+
+    'left-lean'  → right face towards viewer, left side recedes.
+    'right-lean' → mirror of left-lean.
+    Unknown presets fall back to 'left-lean'.
+    """
+    flip = preset == "right-lean"
+    if flip:
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+
+    rgba = img if img.mode == "RGBA" else img.convert("RGBA")
+    w, h = rgba.size
+    coeffs = _float_perspective_coeffs(w, h, _FLOAT_PERSPECTIVE_FACTOR)
+    out = rgba.transform((w, h), Image.PERSPECTIVE, coeffs, resample=Image.BICUBIC)
+
+    if flip:
+        out = out.transpose(Image.FLIP_LEFT_RIGHT)
+    return out
 
 
 def apply_transform(img: Image.Image, transform: DeviceFrameTransformConfig) -> Image.Image:

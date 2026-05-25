@@ -86,6 +86,29 @@ def test_apply_float_unknown_preset_does_not_raise():
     assert result.size == (200, 400)
 
 
+def test_apply_float_left_lean_has_transparent_top_left_corner():
+    # For left-lean, the top-left corner recedes and must be transparent.
+    result = _apply_float(_rgba(200, 400), "left-lean")
+    assert result.getpixel((0, 0))[3] == 0, "top-left corner should be transparent for left-lean"
+
+
+def test_apply_float_left_lean_top_right_corner_is_opaque():
+    # Right edge faces the viewer — top-right corner should remain opaque.
+    result = _apply_float(_rgba(200, 400), "left-lean")
+    assert result.getpixel((199, 0))[3] > 0, "top-right corner should be opaque for left-lean"
+
+
+def test_apply_float_right_lean_has_transparent_top_right_corner():
+    # right-lean is the mirror — top-right corner should recede and be transparent.
+    result = _apply_float(_rgba(200, 400), "right-lean")
+    assert result.getpixel((199, 0))[3] == 0, "top-right corner should be transparent for right-lean"
+
+
+def test_apply_float_right_lean_top_left_corner_is_opaque():
+    result = _apply_float(_rgba(200, 400), "right-lean")
+    assert result.getpixel((0, 0))[3] > 0, "top-left corner should be opaque for right-lean"
+
+
 # ── apply_transform dispatcher ────────────────────────────────────────────────
 
 def test_apply_transform_tilt():
