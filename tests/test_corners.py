@@ -41,6 +41,31 @@ def test_tilt_90_tl_and_tr_share_x():
     assert abs(corners[0][0] - corners[1][0]) < 2
 
 
+def test_tilt_90_tl_is_at_right_edge():
+    # After CW 90°, the original TL corner moves to the right edge of the output.
+    # This verifies the rotation direction (not just that TL/TR share x, which
+    # passes regardless of whether the angle is mirrored).
+    cfg = DeviceFrameTransformConfig(mode="tilt", tilt_angle=90.0)
+    img = Image.new("RGBA", (300, 600))
+    post = _apply_tilt(img, 90.0)
+    corners = projected_corners(cfg, 300, 600, post.width, post.height, 0, 0)
+    # TL must be near (post_w, 0), not near (0, post_h)
+    assert abs(corners[0][0] - post.width) < 2, f"TL.x should be ~{post.width}, got {corners[0][0]}"
+    assert abs(corners[0][1]) < 2, f"TL.y should be ~0, got {corners[0][1]}"
+
+
+def test_tilt_minus15_tr_is_higher_than_tl():
+    # Default tilt_angle=-15 visually leans the device: the top-right corner rises
+    # (y decreases) while top-left shifts down slightly.  TR.y < TL.y.
+    cfg = DeviceFrameTransformConfig(mode="tilt", tilt_angle=-15.0)
+    img = Image.new("RGBA", (300, 600))
+    post = _apply_tilt(img, -15.0)
+    corners = projected_corners(cfg, 300, 600, post.width, post.height, 0, 0)
+    tl_y = corners[0][1]
+    tr_y = corners[1][1]
+    assert tr_y < tl_y, f"With tilt_angle=-15, TR.y ({tr_y:.1f}) should be less than TL.y ({tl_y:.1f})"
+
+
 def test_iso_left_tl_x_equals_pre_h_times_sin30():
     cfg = DeviceFrameTransformConfig(mode="iso", iso_variant="left")
     corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)  # post_w/post_h unused by iso transform
