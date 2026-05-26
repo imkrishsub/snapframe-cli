@@ -313,7 +313,10 @@ def projected_corners(
 ) -> list[tuple[float, float]]:
     """Return the 4 real device corners in canvas space (TL, TR, BR, BL)."""
     if transform.mode == "tilt":
-        a = math.radians(transform.tilt_angle)
+        # _apply_tilt calls img.rotate(-tilt_angle), which is PIL CCW rotation
+        # by -tilt_angle.  Negate here so the corner formula matches the actual
+        # pixel positions in the output image.
+        a = math.radians(-transform.tilt_angle)
         cx_in, cy_in = pre_w / 2, pre_h / 2
         cx_out, cy_out = post_w / 2, post_h / 2
         result = []
@@ -492,10 +495,6 @@ def apply_device_frame(
     composite.paste(frame_img, (0, 0), frame_img)
 
     content_size = (fw, fh)
-
-    if ss_config.shadow:
-        composite = add_shadow(composite, ss_config.shadow_blur, ss_config.shadow_opacity)
-
     return composite, content_size
 
 
@@ -506,21 +505,28 @@ def _load_screenshot(
     available_height: int,
     project_root: Path,
     device_frame: DeviceFrameConfig | None = None,
+    apply_shadow: bool = True,
 ) -> tuple[Image.Image, tuple[int, int]]:
     img = Image.open(project_root / path).convert("RGBA")
 
     if device_frame and device_frame.enabled:
-        # Scale the available region by `scale` to leave breathing room on the canvas
+        # Scale both dimensions uniformly so that resize drag always produces
+        # a visible change (previously only max_w was scaled, so height-
+        # constrained devices like phones were unaffected by scale changes).
         max_w = int(available_width * config.scale)
-        max_h = int(available_height * 0.92)
-        return apply_device_frame(img, device_frame, max_w, max_h, config)
+        max_h = int(available_height * config.scale)
+        # apply_device_frame never adds shadow; caller applies it after any transforms
+        composite, content_size = apply_device_frame(img, device_frame, max_w, max_h, config)
+        if apply_shadow and config.shadow:
+            composite = add_shadow(composite, config.shadow_blur, config.shadow_opacity)
+        return composite, content_size
 
     # No device frame — original path
     target_w = int(available_width * config.scale)
     aspect = img.height / img.width
     target_h = int(target_w * aspect)
 
-    max_h = int(available_height * 0.92)
+    max_h = int(available_height * config.scale)
     if target_h > max_h:
         target_h = max_h
         target_w = int(target_h / aspect)
@@ -531,7 +537,7 @@ def _load_screenshot(
     if config.rounded_corners > 0:
         img = apply_rounded_corners(img, config.rounded_corners)
 
-    if config.shadow:
+    if apply_shadow and config.shadow:
         img = add_shadow(img, config.shadow_blur, config.shadow_opacity)
 
     return img, content_size
@@ -639,6 +645,14 @@ def render_hero(
     layout_info = None
 
     if has_screenshot:
+        # For projected transforms (tilt/iso/float), load shadow-free so we can apply the
+        # transform first, then add shadow afterward.  This keeps projected_corners and the
+        # dev_x/dev_y centring in shadow-free coordinate space throughout.
+        is_projected = (
+            template.device_frame
+            and template.device_frame.enabled
+            and template.device_frame.transform.mode != "none"
+        )
         ss_img, (content_w, content_h) = _load_screenshot(
             image_config.screenshot,
             template.screenshot,
@@ -646,19 +660,21 @@ def render_hero(
             ss_h,
             project_root,
             device_frame=template.device_frame,
+            apply_shadow=not is_projected,
         )
 
         # Save pre-transform, shadow-free frame dimensions for layout_info
         content_w_visual = content_w
         content_h_visual = content_h
 
-        if (
-            template.device_frame
-            and template.device_frame.enabled
-            and template.device_frame.transform.mode != "none"
-        ):
+        if is_projected:
             ss_img = apply_transform(ss_img, template.device_frame.transform)
+            # content_w/h are now shadow-free post-transform dimensions — used for centering
+            # and passed to projected_corners as post_w/post_h
             content_w, content_h = ss_img.size
+            # Add shadow after transform so it doesn't get sheared/rotated with the device
+            if template.screenshot.shadow:
+                ss_img = add_shadow(ss_img, template.screenshot.shadow_blur, template.screenshot.shadow_opacity)
 
         shadow_pad = template.screenshot.shadow_blur * 2 if template.screenshot.shadow else 0
 

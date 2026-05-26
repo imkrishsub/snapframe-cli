@@ -293,7 +293,7 @@ def build(project: str, only: str | None):
 
 @cli.command()
 @click.option("--host", default="127.0.0.1", show_default=True, help="Host to bind to.")
-@click.option("--port", default=5000, show_default=True, help="Port to listen on.")
+@click.option("--port", default=5174, show_default=True, help="Port to listen on.")
 @click.option("--debug", is_flag=True, default=False, help="Enable debug mode.")
 def serve(host: str, port: int, debug: bool):
     """Start the web UI."""
