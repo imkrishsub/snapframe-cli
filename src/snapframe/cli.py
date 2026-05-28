@@ -265,7 +265,7 @@ def build(project: str, only: str | None):
     images = project_config.images
 
     if only:
-        images = [img for img in images if only in img.output]
+        images = [img for img in images if only in Path(img.output).name]
 
     if not images:
         click.echo("No images to build.")

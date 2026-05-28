@@ -208,9 +208,19 @@ def test_image_config_default_output_is_empty_string():
     assert ImageConfig().output == ""
 
 
+def test_image_config_default_subtitle_is_empty_string():
+    assert ImageConfig().subtitle == ""
+
+
+def test_image_config_accepts_subtitle():
+    cfg = ImageConfig(title="My App", subtitle="The best app")
+    assert cfg.subtitle == "The best app"
+
+
 def test_image_config_accepts_all_fields():
-    cfg = ImageConfig(title="My App", screenshot="screens/main.png", output="out.png")
+    cfg = ImageConfig(title="My App", subtitle="Tagline", screenshot="screens/main.png", output="out.png")
     assert cfg.title == "My App"
+    assert cfg.subtitle == "Tagline"
     assert cfg.screenshot == "screens/main.png"
     assert cfg.output == "out.png"
 

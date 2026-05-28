@@ -164,6 +164,32 @@ def test_render_hero_without_screenshot_returns_rgb_at_canvas_size():
     assert result.size == (1200, 630)
 
 
+def test_render_hero_with_subtitle_returns_correct_canvas_size():
+    """Subtitle must not change the canvas dimensions."""
+    template = TemplateConfig()
+    image_config = ImageConfig(title="Hello World", subtitle="A great app")
+    result = render(template, image_config, Path("."))
+    assert result.size == (1200, 630)
+
+
+def test_render_hero_subtitle_produces_different_image_than_no_subtitle():
+    """A non-empty subtitle must visually change the output."""
+    template = TemplateConfig()
+    without = render(template, ImageConfig(title="Hello"), Path("."))
+    with_sub = render(template, ImageConfig(title="Hello", subtitle="Tagline"), Path("."))
+    assert without.tobytes() != with_sub.tobytes()
+
+
+@pytest.mark.parametrize("position", ["top", "bottom", "left", "right"])
+def test_render_hero_subtitle_all_text_positions_return_correct_canvas_size(position):
+    """Subtitle must not break layout for any text position."""
+    template = TemplateConfig()
+    template.text.position = position
+    image_config = ImageConfig(title="Layout test", subtitle="Subtitle text")
+    result = render(template, image_config, Path("."))
+    assert result.size == (1200, 630)
+
+
 def test_render_hero_respects_custom_canvas_size():
     template = TemplateConfig()
     template.size = (800, 400)

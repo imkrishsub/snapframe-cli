@@ -71,6 +71,7 @@ class ImageConfig:
     template: str = ""
     output: str = ""
     title: str = ""
+    subtitle: str = ""
     screenshot: str | None = None
 
 
@@ -202,6 +203,8 @@ def load_project(path: Path) -> ProjectConfig:
             img.output = img_data["output"]
         if "title" in img_data:
             img.title = img_data["title"]
+        if "subtitle" in img_data:
+            img.subtitle = img_data["subtitle"]
         if "screenshot" in img_data:
             img.screenshot = img_data["screenshot"]
         images.append(img)

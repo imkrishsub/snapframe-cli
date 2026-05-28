@@ -572,7 +572,7 @@ def render_hero(
 
     lines = _wrap_text(_sanitize_text(image_config.title), font, text_area_w, draw)
 
-    # Measure lines
+    # Measure title lines
     line_metrics = []
     for line in lines:
         bbox = draw.textbbox((0, 0), line, font=font)
@@ -582,7 +582,33 @@ def render_hero(
 
     line_h = max(lh for _, lh in line_metrics) if line_metrics else 0
     line_spacing = int(line_h * 0.3)
-    total_text_h = len(lines) * line_h + max(0, len(lines) - 1) * line_spacing
+    title_block_h = len(lines) * line_h + max(0, len(lines) - 1) * line_spacing
+    total_text_h = title_block_h
+
+    # Subtitle: 60% font size, same color at 75% opacity, half-line-height gap
+    subtitle_font = None
+    subtitle_lines: list[str] = []
+    subtitle_metrics: list[tuple[int, int]] = []
+    subtitle_gap = 0
+    subtitle_block_h = 0
+
+    if image_config.subtitle:
+        sub_fc = FontConfig(
+            path=template.font.path,
+            size=int(template.font.size * 0.6),
+            color=template.font.color,
+            align=template.font.align,
+        )
+        subtitle_font = _load_font(sub_fc, project_root)
+        subtitle_lines = _wrap_text(_sanitize_text(image_config.subtitle), subtitle_font, text_area_w, draw)
+        for sub_line in subtitle_lines:
+            bbox = draw.textbbox((0, 0), sub_line, font=subtitle_font)
+            subtitle_metrics.append((bbox[2] - bbox[0], bbox[3] - bbox[1]))
+        sub_line_h = max(lh for _, lh in subtitle_metrics) if subtitle_metrics else 0
+        sub_line_spacing = int(sub_line_h * 0.3)
+        subtitle_gap = line_h // 2
+        subtitle_block_h = len(subtitle_lines) * sub_line_h + max(0, len(subtitle_lines) - 1) * sub_line_spacing
+        total_text_h += subtitle_gap + subtitle_block_h
 
     # Layout regions
     if text_pos in ("top", "bottom"):
@@ -623,7 +649,7 @@ def render_hero(
     result = bg.convert("RGBA")
     draw = ImageDraw.Draw(result)
 
-    # Vertically center text within text region
+    # Vertically center text block (title + optional subtitle) within text region
     text_region_w = tx2 - tx1
     text_region_h = ty2 - ty1
     text_start_y = ty1 + (text_region_h - total_text_h) // 2
@@ -640,6 +666,24 @@ def render_hero(
             x = tx1 + pad
 
         draw.text((x, y), line, font=font, fill=font_color)
+
+    # Draw subtitle if present
+    if subtitle_font and subtitle_lines:
+        r, g, b = font_color
+        subtitle_color = (r, g, b, int(255 * 0.75))
+        sub_line_h = max(lh for _, lh in subtitle_metrics)
+        sub_line_spacing = int(sub_line_h * 0.3)
+        sub_start_y = text_start_y + title_block_h + subtitle_gap
+        align = template.font.align
+        for j, (sub_line, (slw, slh)) in enumerate(zip(subtitle_lines, subtitle_metrics)):
+            sy = sub_start_y + j * (slh + sub_line_spacing)
+            if align == "center":
+                sx = tx1 + (text_region_w - slw) // 2
+            elif align == "right":
+                sx = tx2 - pad - slw
+            else:
+                sx = tx1 + pad
+            draw.text((sx, sy), sub_line, font=subtitle_font, fill=subtitle_color)
 
     # Draw screenshot
     layout_info = None
