@@ -2,6 +2,9 @@
 
 Generate polished App Store screenshots and marketing images from plain screenshots and text. Use the CLI to automate batch builds, or the web UI for interactive design.
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/krishsub)
+
 ## Requirements
 
 - Python 3.11+
@@ -55,6 +58,20 @@ snapframe build --project test/post-xnapper.toml
 # Inspect output in test/output/
 ```
 
+## Contributing
+
+Bug reports and pull requests are welcome via [GitHub Issues](../../issues).
+
+A few guidelines:
+
+- **New config field?** Add it to `src/snapframe/config.py`, document it in `docs/configuration.md`, and add a corresponding test in `tests/test_docs_examples.py`. The doc tests treat the docs as a contract — if the example in the docs doesn't build, the test fails.
+- **New render feature?** Add tests in `tests/test_renderer.py`. There is no automated visual test — validate by running `snapframe build --project test/post-xnapper.toml` and inspecting `test/output/`.
+- **New CLI command?** Add tests in `tests/test_cli.py` using Click's `CliRunner`.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
 ---
 
-For interactive design, live preview, and one-click App Store export, use the web UI at [snapframe.app](https://snapframe.app).
+For interactive design, live preview, and one-click App Store export, use the web UI at [snapframe.app](https://snapframe.app). If snapframe saves you time, consider [buying me a coffee](https://ko-fi.com/krishsub).
