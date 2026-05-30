@@ -1,0 +1,25 @@
+size = [1080, 1080]
+layout = "hero"
+padding = 80
+
+[background]
+type = "gradient"
+colors = ["#667eea", "#764ba2"]
+angle = 135
+
+[font]
+path = "assets/fonts/Inter-Bold.ttf"
+size = 64
+color = "#ffffff"
+align = "center"
+
+[text]
+position = "top"
+
+[screenshot]
+enabled = true
+rounded_corners = 20
+shadow = true
+shadow_blur = 40
+shadow_opacity = 0.4
+scale = 0.75

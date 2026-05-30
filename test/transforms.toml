@@ -1,0 +1,41 @@
+[[images]]
+name = "tilt-negative"
+template = "templates/transform-tilt-negative.toml"
+output = "output/transforms/tilt-negative.png"
+title = "Tilt -15deg"
+screenshot = "assets/screenshots/placeholder.png"
+
+[[images]]
+name = "tilt-positive"
+template = "templates/transform-tilt-positive.toml"
+output = "output/transforms/tilt-positive.png"
+title = "Tilt +15deg"
+screenshot = "assets/screenshots/placeholder.png"
+
+[[images]]
+name = "iso-left"
+template = "templates/transform-iso-left.toml"
+output = "output/transforms/iso-left.png"
+title = "Iso left"
+screenshot = "assets/screenshots/placeholder.png"
+
+[[images]]
+name = "iso-right"
+template = "templates/transform-iso-right.toml"
+output = "output/transforms/iso-right.png"
+title = "Iso right"
+screenshot = "assets/screenshots/placeholder.png"
+
+[[images]]
+name = "float-left-lean"
+template = "templates/transform-float-left-lean.toml"
+output = "output/transforms/float-left-lean.png"
+title = "Float left-lean"
+screenshot = "assets/screenshots/placeholder.png"
+
+[[images]]
+name = "float-right-lean"
+template = "templates/transform-float-right-lean.toml"
+output = "output/transforms/float-right-lean.png"
+title = "Float right-lean"
+screenshot = "assets/screenshots/placeholder.png"

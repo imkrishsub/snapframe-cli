@@ -1,0 +1,11 @@
+[[images]]
+template = "templates/hero-og.toml"
+output = "output/hero-og.png"
+title = "Hello World"
+screenshot = "assets/screenshots/placeholder.png"
+
+[[images]]
+template = "templates/hero-square.toml"
+output = "output/hero-square.png"
+title = "Also hello"
+screenshot = "assets/screenshots/placeholder.png"

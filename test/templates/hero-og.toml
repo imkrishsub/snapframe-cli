@@ -1,0 +1,25 @@
+size = [1500, 1000]
+layout = "hero"
+padding = 60
+
+[background]                                                                                                     
+type = "gradient"
+colors = ["#1e3c72", "#2a5298"]                                                                                  
+angle = 160
+
+[font]
+path = "assets/fonts/DancingScript-VariableFont_wght.ttf"
+size = 64
+color = "#ffffff"
+align = "center"
+
+[text]
+position = "top"
+
+[screenshot]
+enabled = true
+rounded_corners = 16
+shadow = true
+shadow_blur = 30
+shadow_opacity = 0.9
+scale = 1.2

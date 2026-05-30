@@ -9,8 +9,6 @@ requires-python = ">=3.11"
 dependencies = [
     "click>=8.0",
     "Pillow>=10.0",
-    "flask>=3.0",
-    "gunicorn>=21.0",
 ]
 
 [project.optional-dependencies]
@@ -23,4 +21,4 @@ snapframe = "snapframe.cli:cli"
 where = ["src"]
 
 [tool.setuptools.package-data]
-snapframe = ["templates/*", "frames/*", "fonts/*"]
+snapframe = ["frames/*", "fonts/*"]
