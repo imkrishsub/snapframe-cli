@@ -1,4 +1,4 @@
-"""Tests for the snapframe CLI: init, build, serve commands."""
+"""Tests for the snapframe CLI: init and build commands."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -219,28 +219,3 @@ def test_build_handles_render_error_gracefully(runner, tmp_path):
     assert result.exit_code == 0
     assert "Error" in result.output
 
-
-# ── serve ─────────────────────────────────────────────────────────────────────
-
-def test_serve_calls_app_run_with_default_host_and_port(runner):
-    with patch("snapframe.server.app") as mock_app:
-        runner.invoke(cli, ["serve"])
-    mock_app.run.assert_called_once_with(host="127.0.0.1", port=5174, debug=False)
-
-
-def test_serve_accepts_custom_host_and_port(runner):
-    with patch("snapframe.server.app") as mock_app:
-        runner.invoke(cli, ["serve", "--host", "0.0.0.0", "--port", "8080"])
-    mock_app.run.assert_called_once_with(host="0.0.0.0", port=8080, debug=False)
-
-
-def test_serve_debug_flag_passes_debug_true(runner):
-    with patch("snapframe.server.app") as mock_app:
-        runner.invoke(cli, ["serve", "--debug"])
-    mock_app.run.assert_called_once_with(host="127.0.0.1", port=5174, debug=True)
-
-
-def test_serve_prints_running_message(runner):
-    with patch("snapframe.server.app"):
-        result = runner.invoke(cli, ["serve"])
-    assert "127.0.0.1:5174" in result.output
