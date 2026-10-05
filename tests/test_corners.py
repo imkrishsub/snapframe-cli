@@ -6,7 +6,6 @@ from PIL import Image
 
 from snapframe.config import DeviceFrameTransformConfig
 from snapframe.renderer import (
-    _FLOAT_PERSPECTIVE_FACTOR,
     _ISO_COS,
     _ISO_SIN,
     _apply_tilt,
@@ -139,30 +138,65 @@ def test_iso_corners_match_rendered_pixels(variant):
         assert out.getpixel((out.width - 2, out.height - 2))[3] == 0
 
 
-def test_float_left_lean_tl_y_equals_factor_half_times_post_h():
-    cfg = DeviceFrameTransformConfig(mode="float", float_preset="left-lean")
-    corners = projected_corners(cfg, 300, 600, 300, 600, 0, 0)
-    expected_y = _FLOAT_PERSPECTIVE_FACTOR / 2 * 600
-    assert abs(corners[0][1] - expected_y) < 0.01
+def _float(preset, w=300, h=600):
+    cfg = DeviceFrameTransformConfig(mode="float", float_preset=preset)
+    return projected_corners(cfg, w, h, 0, 0, 0, 0)  # post_w/post_h unused by float transform
 
 
-def test_float_left_lean_tr_is_at_top():
-    cfg = DeviceFrameTransformConfig(mode="float", float_preset="left-lean")
-    corners = projected_corners(cfg, 300, 600, 300, 600, 0, 0)
-    assert abs(corners[1][1]) < 0.01  # TR y == 0
+def test_float_left_lean_near_right_edge_is_full_height():
+    tl, tr, br, bl = _float("left-lean")
+    assert abs(tr[0] - br[0]) < 0.01
+    assert abs(tr[1]) < 0.01 and abs(br[1] - 600) < 0.01
 
 
-def test_float_right_lean_tr_y_equals_factor_half_times_post_h():
-    cfg = DeviceFrameTransformConfig(mode="float", float_preset="right-lean")
-    corners = projected_corners(cfg, 300, 600, 300, 600, 0, 0)
-    expected_y = _FLOAT_PERSPECTIVE_FACTOR / 2 * 600
-    assert abs(corners[1][1] - expected_y) < 0.01
+def test_float_left_lean_far_left_edge_is_shorter_and_centred():
+    tl, tr, br, bl = _float("left-lean")
+    assert abs(tl[0]) < 0.01 and abs(bl[0]) < 0.01
+    far = bl[1] - tl[1]
+    assert 0.75 * 600 < far < 0.95 * 600
+    assert abs((tl[1] + bl[1]) / 2 - 300) < 0.01
 
 
-def test_float_right_lean_tl_is_at_top():
-    cfg = DeviceFrameTransformConfig(mode="float", float_preset="right-lean")
-    corners = projected_corners(cfg, 300, 600, 300, 600, 0, 0)
-    assert abs(corners[0][1]) < 0.01  # TL y == 0
+def test_float_width_is_foreshortened():
+    import math
+    for preset in ("left-lean", "right-lean"):
+        xs = [x for x, _ in _float(preset)]
+        assert max(xs) - min(xs) < 300 * math.cos(math.radians(20))
+
+
+def test_float_right_lean_mirrors_left_lean():
+    left = _float("left-lean")
+    right = _float("right-lean")
+    out_w = max(x for x, _ in left)
+    # mirror x and swap left/right corners: TL<->TR, BL<->BR
+    mirrored = [(out_w - x, y) for x, y in [left[1], left[0], left[3], left[2]]]
+    for (ax, ay), (ex, ey) in zip(right, mirrored):
+        assert abs(ax - ex) < 0.01 and abs(ay - ey) < 0.01
+
+
+@pytest.mark.parametrize("preset", ["left-lean", "right-lean"])
+def test_float_corners_match_rendered_pixels(preset):
+    from snapframe.renderer import _apply_float
+    img = Image.new("RGBA", (300, 600), (255, 0, 0, 255))
+    out = _apply_float(img, preset)
+    corners = _float(preset)
+    cx = sum(x for x, _ in corners) / 4
+    cy = sum(y for _, y in corners) / 4
+    for x, y in corners:
+        px = int(x + (cx - x) * 0.05)
+        py = int(y + (cy - y) * 0.05)
+        assert out.getpixel((px, py))[3] == 255, f"expected opaque at {(px, py)}"
+
+
+def test_solve_perspective_maps_dst_to_src():
+    from snapframe.renderer import _solve_perspective
+    dst = [(0, 30), (170, 0), (170, 600), (0, 570)]
+    src = [(0, 0), (300, 0), (300, 600), (0, 600)]
+    a, b, c, d, e, f, g, h = _solve_perspective(dst, src)
+    for (x, y), (u, v) in zip(dst, src):
+        den = g * x + h * y + 1
+        assert abs((a * x + b * y + c) / den - u) < 1e-6
+        assert abs((d * x + e * y + f) / den - v) < 1e-6
 
 
 def test_all_modes_return_four_corners():

@@ -251,61 +251,75 @@ def _apply_iso(img: Image.Image, variant: str) -> Image.Image:
     return img.transform(out_size, Image.AFFINE, coeffs, resample=Image.BICUBIC)
 
 
-# Perspective factor: fraction of height that is vertically compressed on the
-# "receding" side.  0.20 ≈ 20 % foreshortening — the receding edge appears at
-# 80 % of the facing edge's height.
-_FLOAT_PERSPECTIVE_FACTOR = 0.20
+# Float: the device is rotated about its vertical centre axis and viewed through
+# a pinhole camera.  The near edge keeps the device's full height; the far edge
+# shrinks and the width foreshortens, as a real turned device would.
+_FLOAT_ANGLE_DEG = 30.0
+_FLOAT_CAMERA_DISTANCE = 2.0  # multiples of device height
 
 
-def _float_perspective_coeffs(w: int, h: int, f: float) -> tuple[float, ...]:
-    """Return the 8 Pillow PERSPECTIVE coefficients for a left-lean float effect.
+def _float_corners(w: int, h: int, preset: str) -> list[tuple[float, float]]:
+    """Return the projected device corners (TL, TR, BR, BL) for a float preset.
 
-    The transform maps the full source rectangle to a trapezoid where the left
-    edge is compressed by factor *f* and the right edge remains full height:
+    'left-lean'  → right edge towards viewer, left side recedes.
+    'right-lean' → mirror of left-lean.
+    Unknown presets fall back to 'left-lean'.
 
-        src corner  →  dst position
-        (0, 0)      →  (0,    h·f/2)        top-left shifts down
-        (w, 0)      →  (w,    0)            top-right stays
-        (w, h)      →  (w,    h)            bottom-right stays
-        (0, h)      →  (0,    h·(1−f/2))   bottom-left shifts up
-
-    Pillow PERSPECTIVE solves the inverse:
-        x_src = (a·x + b·y + c) / (g·x + h_c·y + 1)
-        y_src = (d·x + e·y + fc) / (g·x + h_c·y + 1)
-
-    Coefficients derived analytically from the four dst→src correspondences.
+    Coordinates are normalised so the near edge spans y ∈ [0, h] and min x = 0.
     """
-    inv = 1.0 / (1.0 - f)
-    a_c  =  inv
-    b_c  =  0.0
-    c_c  =  0.0
-    d_c  =  h * f / (2.0 * w * (1.0 - f))
-    e_c  =  inv
-    f_c  = -(h * f) / (2.0 * (1.0 - f))
-    g_c  =  f / (w * (1.0 - f))
-    h_c  =  0.0
-    return (a_c, b_c, c_c, d_c, e_c, f_c, g_c, h_c)
+    sin_a = math.sin(math.radians(_FLOAT_ANGLE_DEG))
+    cos_a = math.cos(math.radians(_FLOAT_ANGLE_DEG))
+    d = _FLOAT_CAMERA_DISTANCE * h
+    # Depth z grows away from the camera; the left half recedes for left-lean.
+    near_k = d / (d - w / 2 * sin_a)
+    pts = []
+    for x, y in [(-w / 2, -h / 2), (w / 2, -h / 2), (w / 2, h / 2), (-w / 2, h / 2)]:
+        k = d / (d - x * sin_a) / near_k
+        pts.append((x * cos_a * k, y * k + h / 2))
+    min_x = min(px for px, _ in pts)
+    pts = [(px - min_x, py) for px, py in pts]
+    if preset == "right-lean":
+        out_w = max(px for px, _ in pts)
+        tl, tr, br, bl = [(out_w - px, py) for px, py in pts]
+        pts = [tr, tl, bl, br]
+    return pts
+
+
+def _solve_perspective(
+    dst: list[tuple[float, float]], src: list[tuple[float, float]]
+) -> tuple[float, ...]:
+    """Return Pillow PERSPECTIVE coefficients mapping each dst point to its src point.
+
+    Pillow evaluates the inverse mapping per output pixel:
+        x_src = (a·x + b·y + c) / (g·x + h·y + 1)
+        y_src = (d·x + e·y + f) / (g·x + h·y + 1)
+    """
+    rows = []
+    for (x, y), (u, v) in zip(dst, src):
+        rows.append([x, y, 1, 0, 0, 0, -x * u, -y * u, u])
+        rows.append([0, 0, 0, x, y, 1, -x * v, -y * v, v])
+    # Gauss-Jordan elimination with partial pivoting on the 8×9 augmented matrix
+    n = 8
+    for col in range(n):
+        pivot = max(range(col, n), key=lambda r: abs(rows[r][col]))
+        rows[col], rows[pivot] = rows[pivot], rows[col]
+        pv = rows[col][col]
+        rows[col] = [val / pv for val in rows[col]]
+        for r in range(n):
+            if r != col and rows[r][col]:
+                factor = rows[r][col]
+                rows[r] = [rv - factor * cv for rv, cv in zip(rows[r], rows[col])]
+    return tuple(rows[r][n] for r in range(n))
 
 
 def _apply_float(img: Image.Image, preset: str) -> Image.Image:
-    """Apply perspective foreshortening for a floating-device look.
-
-    'left-lean'  → right face towards viewer, left side recedes.
-    'right-lean' → mirror of left-lean.
-    Unknown presets fall back to 'left-lean'.
-    """
-    flip = preset == "right-lean"
-    if flip:
-        img = img.transpose(Image.FLIP_LEFT_RIGHT)
-
+    """Apply camera perspective for a floating-device look (see _float_corners)."""
     rgba = img if img.mode == "RGBA" else img.convert("RGBA")
     w, h = rgba.size
-    coeffs = _float_perspective_coeffs(w, h, _FLOAT_PERSPECTIVE_FACTOR)
-    out = rgba.transform((w, h), Image.PERSPECTIVE, coeffs, resample=Image.BICUBIC)
-
-    if flip:
-        out = out.transpose(Image.FLIP_LEFT_RIGHT)
-    return out
+    corners = _float_corners(w, h, preset)
+    out_w = round(max(x for x, _ in corners))
+    coeffs = _solve_perspective(corners, [(0, 0), (w, 0), (w, h), (0, h)])
+    return rgba.transform((out_w, h), Image.PERSPECTIVE, coeffs, resample=Image.BICUBIC)
 
 
 def apply_transform(img: Image.Image, transform: DeviceFrameTransformConfig) -> Image.Image:
@@ -365,21 +379,7 @@ def projected_corners(
         return [(dev_x + cx, dev_y + cy) for cx, cy in raw]
 
     if transform.mode == "float":
-        f = _FLOAT_PERSPECTIVE_FACTOR
-        if transform.float_preset == "right-lean":
-            raw = [
-                (0,       0),
-                (post_w,  f / 2 * post_h),
-                (post_w,  (1 - f / 2) * post_h),
-                (0,       post_h),
-            ]
-        else:  # left-lean (default)
-            raw = [
-                (0,       f / 2 * post_h),
-                (post_w,  0),
-                (post_w,  post_h),
-                (0,       (1 - f / 2) * post_h),
-            ]
+        raw = _float_corners(pre_w, pre_h, transform.float_preset)
         return [(dev_x + cx, dev_y + cy) for cx, cy in raw]
 
     if transform.mode == "none":
