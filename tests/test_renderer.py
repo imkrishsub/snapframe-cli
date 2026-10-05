@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from snapframe.config import ImageConfig, TemplateConfig
-from snapframe.renderer import _DEVICE_MIN_SLIVER, _FRAMES_DIR, FINISH_PRESETS, generate_frame, render, render_with_bounds
+from snapframe.renderer import _BEZEL_RGB, _hex_to_rgb, _DEVICE_MIN_SLIVER, _FRAMES_DIR, FINISH_PRESETS, generate_frame, render, render_with_bounds
 
 # Discovered at import time so pytest.mark.parametrize can use it.
 ALL_MODELS = sorted(p.stem for p in _FRAMES_DIR.glob("*.toml"))
@@ -18,6 +18,7 @@ def test_finish_presets_have_required_colors():
         assert "border" in preset, f"{name} missing 'border'"
         assert "highlight" in preset, f"{name} missing 'highlight'"
         assert "button" in preset, f"{name} missing 'button'"
+        assert "shadow" in preset, f"{name} missing 'shadow'"
 
 
 def test_generate_frame_returns_rgba():
@@ -83,32 +84,60 @@ def test_generate_frame_screen_rect_sx_is_offset():
     assert sx > raw_sx, "sx should be offset by btn_w"
 
 
-# ── FINISH_PRESETS: border-color pixel round-trip ─────────────────────────────
+# ── Frame finish shading ──────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("finish,expected_rgb", [
-    ("black",            (0x1C, 0x1C, 0x1E)),
-    ("matte-gray",       (0x48, 0x48, 0x4A)),
-    ("natural-titanium", (0x8E, 0x8E, 0x93)),
-])
-def test_frame_border_pixel_matches_finish_color(finish, expected_rgb):
-    """A pixel on the left frame wall carries the exact border hex from the preset.
+def _luma(rgb):
+    return 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]
+
+
+@pytest.mark.parametrize("finish", sorted(FINISH_PRESETS))
+def test_frame_band_mid_height_matches_finish_border_color(finish):
+    """Mid-height on the metal band the vertical gradient sits on the preset border colour.
 
     Geometry for iphone-16-pro at 400×800:
-      scale = 800/874 ≈ 0.9153, btn_w = 2, sx ≈ 14
-      x=5 is inside the frame body (btn_w=2) and left of the screen cutout (sx≈14).
-      y=400 is mid-frame, far from any corner.
+      scale = 800/874 ≈ 0.9153, btn_w = 2, band_w = 4, edge_w = 1
+      Band spans x∈[2,5]: x=2 silhouette edge, x=3 highlight, x=5 chamfer, x=4 plain band.
     """
     img, _ = generate_frame("iphone-16-pro", 400, 800, finish=finish)
-    pixel = img.getpixel((5, 400))
-    assert pixel[:3] == expected_rgb
-    assert pixel[3] == 255  # fully opaque
+    pixel = img.getpixel((4, 400))
+    assert pixel[:3] == _hex_to_rgb(FINISH_PRESETS[finish]["border"])
+    assert pixel[3] == 255
+
+
+@pytest.mark.parametrize("finish", sorted(FINISH_PRESETS))
+def test_frame_band_is_lit_from_above(finish):
+    """The band gradient runs lighter at the top than at the bottom."""
+    img, _ = generate_frame("iphone-16-pro", 400, 800, finish=finish)
+    assert _luma(img.getpixel((4, 150))) > _luma(img.getpixel((4, 650)))
+
+
+@pytest.mark.parametrize("finish", sorted(FINISH_PRESETS))
+def test_frame_has_dark_glass_bezel_between_band_and_screen(finish):
+    """Between the metal band (ends x=5) and the screen (starts sx≈14) sits the black bezel."""
+    img, (sx, _, _, _, _) = generate_frame("iphone-16-pro", 400, 800, finish=finish)
+    assert sx > 10
+    assert img.getpixel((10, 400)) == (*_BEZEL_RGB, 255)
+
+
+def test_frame_outer_edge_is_darker_than_band():
+    """A dark silhouette line defines the outer edge against light backgrounds."""
+    img, _ = generate_frame("iphone-16-pro", 400, 800, finish="natural-titanium")
+    assert _luma(img.getpixel((2, 400))) < _luma(img.getpixel((4, 400)))
+
+
+def test_side_button_is_shaded_across_its_width():
+    """Left buttons are lit on the outer face and darker towards the band."""
+    img, _ = generate_frame("iphone-16-pro", 400, 800, finish="natural-titanium")
+    y = int(800 * 0.33)   # middle of the volume-up button
+    assert img.getpixel((0, y))[3] == 255
+    assert _luma(img.getpixel((0, y))) > _luma(img.getpixel((1, y)))
 
 
 def test_different_finishes_have_different_border_colors():
     """Each finish should produce a visually distinct frame color at the same pixel."""
     img_black, _ = generate_frame("iphone-16-pro", 400, 800, finish="black")
     img_ti, _    = generate_frame("iphone-16-pro", 400, 800, finish="natural-titanium")
-    assert img_black.getpixel((5, 400))[:3] != img_ti.getpixel((5, 400))[:3]
+    assert img_black.getpixel((4, 400))[:3] != img_ti.getpixel((4, 400))[:3]
 
 
 # ── Invalid model ─────────────────────────────────────────────────────────────

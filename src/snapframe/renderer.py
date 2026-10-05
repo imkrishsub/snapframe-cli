@@ -10,11 +10,16 @@ from .config import DeviceFrameConfig, DeviceFrameTransformConfig, FontConfig, I
 
 _FRAMES_DIR = Path(__file__).parent / "frames"
 
+# Metal band colours per finish: ``highlight`` (lit top edge / chamfers),
+# ``border`` (band mid-tone), ``shadow`` (band bottom / outer edge), ``button``.
 FINISH_PRESETS: dict[str, dict[str, str]] = {
-    "black":            {"border": "#1c1c1e", "highlight": "#3a3a3a", "button": "#2a2a2c"},
-    "matte-gray":       {"border": "#48484a", "highlight": "#636366", "button": "#3a3a3c"},
-    "natural-titanium": {"border": "#8e8e93", "highlight": "#b0b0b5", "button": "#7a7a80"},
+    "black":            {"border": "#2e2e30", "highlight": "#5c5c60", "shadow": "#161618", "button": "#2a2a2c"},
+    "matte-gray":       {"border": "#6c6c70", "highlight": "#a1a1a6", "shadow": "#45454a", "button": "#5f5f64"},
+    "natural-titanium": {"border": "#b5afa5", "highlight": "#e0dbd2", "shadow": "#857f75", "button": "#a59f95"},
 }
+
+_BEZEL_RGB = (8, 8, 10)     # black glass between the metal band and the screen
+_BAND_FRACTION = 0.3        # share of the spec border_width that is metal band; the rest is bezel
 
 _DEVICE_MIN_SLIVER = 40  # px — minimum on-canvas sliver when device is dragged off an edge
 
@@ -403,6 +408,16 @@ def _load_frame_spec(model: str) -> dict:
         return tomllib.load(f)
 
 
+def _linear_fill(
+    size: tuple[int, int], rgb_colors: list[tuple[int, int, int]], horizontal: bool = False
+) -> Image.Image:
+    """Return an RGBA image filled with a multi-stop linear gradient (top→bottom or left→right)."""
+    steps = 256
+    strip = Image.new("RGB", (steps, 1) if horizontal else (1, steps))
+    strip.putdata([_interpolate_colors(rgb_colors, i / (steps - 1)) for i in range(steps)])
+    return strip.resize(size, Image.BILINEAR).convert("RGBA")
+
+
 def generate_frame(
     model: str,
     target_width: int,
@@ -425,10 +440,13 @@ def generate_frame(
 
     corner_r = int(spec["frame"]["corner_radius"] * scale)
     btn_w = max(2, int(3 * scale))
+    band_w = max(2, round(spec["frame"]["border_width"] * _BAND_FRACTION * scale))
+    edge_w = max(1, round(0.75 * scale))
 
     preset = FINISH_PRESETS.get(finish, FINISH_PRESETS["black"])
     border_rgb = _hex_to_rgb(preset["border"])
     highlight_rgb = _hex_to_rgb(preset["highlight"])
+    shadow_rgb = _hex_to_rgb(preset["shadow"])
     button_rgb = _hex_to_rgb(preset["button"])
 
     sx = int(spec["screen"]["x"] * scale) + btn_w
@@ -439,20 +457,53 @@ def generate_frame(
 
     total_w = fw + 2 * btn_w
     frame = Image.new("RGBA", (total_w, fh), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(frame)
 
-    # Frame body (shifted right by btn_w to leave room for left buttons)
-    draw.rounded_rectangle(
-        [(btn_w, 0), (btn_w + fw - 1, fh - 1)],
-        radius=corner_r,
-        fill=(*border_rgb, 255),
+    # Side buttons: drawn first so the body overlaps their inner end. Shaded
+    # across their width, lit on the outer face and darker where they meet the band.
+    buttons = [
+        ("left",  0.21, 0.06),   # action
+        ("left",  0.29, 0.08),   # volume up
+        ("left",  0.39, 0.11),   # volume down
+        ("right", 0.24, 0.11),   # power
+    ]
+    btn_r = max(1, btn_w // 2)
+    btn_depth = btn_w + max(1, btn_w // 2)
+    btn_stops = [highlight_rgb, button_rgb, shadow_rgb]
+    for side, y_frac, h_frac in buttons:
+        by = int(fh * y_frac)
+        bh = max(2, int(fh * h_frac))
+        stops = btn_stops if side == "left" else btn_stops[::-1]
+        bx = 0 if side == "left" else total_w - btn_depth
+        mask = Image.new("L", (btn_depth, bh), 0)
+        ImageDraw.Draw(mask).rounded_rectangle([(0, 0), (btn_depth - 1, bh - 1)], radius=btn_r, fill=255)
+        frame.paste(_linear_fill((btn_depth, bh), stops, horizontal=True), (bx, by), mask)
+
+    # Metal band: vertical gradient, lit from above
+    body_box = [(btn_w, 0), (btn_w + fw - 1, fh - 1)]
+    body_mask = Image.new("L", frame.size, 0)
+    ImageDraw.Draw(body_mask).rounded_rectangle(body_box, radius=corner_r, fill=255)
+    band_top = _interpolate_color(highlight_rgb, border_rgb, 0.5)
+    frame.paste(_linear_fill(frame.size, [band_top, border_rgb, border_rgb, shadow_rgb]), (0, 0), body_mask)
+
+    # Edge lighting: dark silhouette line, machined highlight just inside it,
+    # and a chamfer highlight where the band meets the glass.
+    def inset(n: int) -> list[tuple[int, int]]:
+        return [(body_box[0][0] + n, n), (body_box[1][0] - n, fh - 1 - n)]
+
+    edges = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+    edge_draw = ImageDraw.Draw(edges)
+    edge_draw.rounded_rectangle(inset(0), radius=corner_r, outline=(*shadow_rgb, 220), width=edge_w)
+    edge_draw.rounded_rectangle(
+        inset(edge_w), radius=max(0, corner_r - edge_w), outline=(*highlight_rgb, 150), width=edge_w
     )
-    draw.rounded_rectangle(
-        [(btn_w + 1, 1), (btn_w + fw - 2, fh - 2)],
-        radius=max(0, corner_r - 1),
-        outline=(*highlight_rgb, 180),
-        width=1,
+    edge_draw.rounded_rectangle(
+        inset(band_w - edge_w), radius=max(0, corner_r - band_w + edge_w), outline=(*highlight_rgb, 110), width=edge_w
     )
+    frame.alpha_composite(edges)
+
+    # Glass bezel ring between the band and the screen
+    draw = ImageDraw.Draw(frame)
+    draw.rounded_rectangle(inset(band_w), radius=max(0, corner_r - band_w), fill=(*_BEZEL_RGB, 255))
 
     # Screen cutout
     if screen_cr > 0:
@@ -463,28 +514,6 @@ def generate_frame(
         )
     else:
         draw.rectangle([(sx, sy), (sx + sw - 1, sy + sh - 1)], fill=(0, 0, 0, 0))
-
-    # Side buttons
-    btn_fill = (*button_rgb, 255)
-    btn_r = max(1, btn_w // 2)
-    buttons = [
-        ("left",  0.21, 0.06),   # action
-        ("left",  0.29, 0.08),   # volume up
-        ("left",  0.39, 0.11),   # volume down
-        ("right", 0.24, 0.11),   # power
-    ]
-    for side, y_frac, h_frac in buttons:
-        by = int(fh * y_frac)
-        bh = max(2, int(fh * h_frac))
-        if side == "left":
-            bx1, bx2 = 0, btn_w
-        else:
-            bx1, bx2 = total_w - btn_w, total_w
-        draw.rounded_rectangle(
-            [(bx1, by), (bx2 - 1, by + bh - 1)],
-            radius=btn_r,
-            fill=btn_fill,
-        )
 
     return frame, (sx, sy, sw, sh, screen_cr)
 
