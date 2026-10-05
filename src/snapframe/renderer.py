@@ -224,15 +224,31 @@ _ISO_COS = math.cos(math.radians(30))  # 0.866
 _ISO_TAN = math.tan(math.radians(30))  # 0.577
 
 
+def _iso_scale(w: int, h: int) -> float:
+    """Uniform scale that keeps the projected device at its pre-transform height."""
+    return h / (h + w * _ISO_SIN)
+
+
 def _apply_iso(img: Image.Image, variant: str) -> Image.Image:
+    """Project the device onto a vertical face of an isometric cube.
+
+    Vertical edges stay vertical; horizontal edges run along the 30° isometric
+    axis and are foreshortened to cos 30°.  The result is scaled uniformly by
+    k = _iso_scale(w, h) so it fits the same height as the unprojected device:
+
+        'left'  → left face, right side lower:  x' = k·x·cos30, y' = k·(y + x·sin30)
+        'right' → right face, left side lower:  x' = k·x·cos30, y' = k·(y + (w − x)·sin30)
+
+    Pillow AFFINE takes the inverse (output → source) mapping.
+    """
     w, h = img.size
-    out_w = int(w + h * _ISO_SIN)
-    out_h = int(h * _ISO_COS)
+    k = _iso_scale(w, h)
+    out_size = (round(k * w * _ISO_COS), h)
     if variant == "left":
-        coeffs = (1, _ISO_TAN, -h * _ISO_SIN, 0, 1 / _ISO_COS, 0)
+        coeffs = (1 / (k * _ISO_COS), 0, 0, -_ISO_TAN / k, 1 / k, 0)
     else:
-        coeffs = (1, -_ISO_TAN, 0, 0, 1 / _ISO_COS, 0)
-    return img.transform((out_w, out_h), Image.AFFINE, coeffs, resample=Image.BICUBIC)
+        coeffs = (1 / (k * _ISO_COS), 0, 0, _ISO_TAN / k, 1 / k, -w * _ISO_SIN)
+    return img.transform(out_size, Image.AFFINE, coeffs, resample=Image.BICUBIC)
 
 
 # Perspective factor: fraction of height that is vertically compressed on the
@@ -328,19 +344,23 @@ def projected_corners(
         return result
 
     if transform.mode == "iso":
+        k = _iso_scale(pre_w, pre_h)
+        dx = k * pre_w * _ISO_COS
+        dy = k * pre_w * _ISO_SIN
+        edge = k * pre_h
         if transform.iso_variant == "left":
             raw = [
-                (int(pre_h * _ISO_SIN),              0),
-                (int(pre_w + pre_h * _ISO_SIN),      0),
-                (pre_w,                              int(pre_h * _ISO_COS)),
-                (0,                                  int(pre_h * _ISO_COS)),
+                (0,   0),
+                (dx,  dy),
+                (dx,  dy + edge),
+                (0,   edge),
             ]
         else:  # right
             raw = [
-                (0,                                  0),
-                (pre_w,                              0),
-                (int(pre_w + pre_h * _ISO_SIN),      int(pre_h * _ISO_COS)),
-                (int(pre_h * _ISO_SIN),              int(pre_h * _ISO_COS)),
+                (0,   dy),
+                (dx,  0),
+                (dx,  edge),
+                (0,   dy + edge),
             ]
         return [(dev_x + cx, dev_y + cy) for cx, cy in raw]
 

@@ -10,6 +10,7 @@ from snapframe.renderer import (
     _ISO_COS,
     _ISO_SIN,
     _apply_tilt,
+    _iso_scale,
     projected_corners,
 )
 
@@ -66,29 +67,76 @@ def test_tilt_minus15_tr_is_higher_than_tl():
     assert tr_y < tl_y, f"With tilt_angle=-15, TR.y ({tr_y:.1f}) should be less than TL.y ({tl_y:.1f})"
 
 
-def test_iso_left_tl_x_equals_pre_h_times_sin30():
+def _approx_corners(actual, expected):
+    for i, ((ax, ay), (ex, ey)) in enumerate(zip(actual, expected)):
+        assert abs(ax - ex) < 0.01 and abs(ay - ey) < 0.01, f"corner {i}: {(ax, ay)} != {(ex, ey)}"
+
+
+def test_iso_left_corners():
     cfg = DeviceFrameTransformConfig(mode="iso", iso_variant="left")
     corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)  # post_w/post_h unused by iso transform
-    assert corners[0][0] == int(600 * _ISO_SIN)
+    k = _iso_scale(300, 600)
+    dx, dy, e = k * 300 * _ISO_COS, k * 300 * _ISO_SIN, k * 600
+    _approx_corners(corners, [(0, 0), (dx, dy), (dx, dy + e), (0, e)])
 
 
-def test_iso_left_tr_x_equals_pre_w_plus_pre_h_times_sin30():
-    cfg = DeviceFrameTransformConfig(mode="iso", iso_variant="left")
-    corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)  # post_w/post_h unused by iso transform
-    assert abs(corners[1][0] - (300 + 600 * _ISO_SIN)) < 0.01
-
-
-def test_iso_right_tl_is_at_origin():
+def test_iso_right_corners():
     cfg = DeviceFrameTransformConfig(mode="iso", iso_variant="right")
+    corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)  # post_w/post_h unused by iso transform
+    k = _iso_scale(300, 600)
+    dx, dy, e = k * 300 * _ISO_COS, k * 300 * _ISO_SIN, k * 600
+    _approx_corners(corners, [(0, dy), (dx, 0), (dx, e), (0, dy + e)])
+
+
+@pytest.mark.parametrize("variant", ["left", "right"])
+def test_iso_vertical_edges_stay_vertical(variant):
+    cfg = DeviceFrameTransformConfig(mode="iso", iso_variant=variant)
+    tl, tr, br, bl = projected_corners(cfg, 300, 600, 0, 0, 0, 0)
+    assert abs(tl[0] - bl[0]) < 0.01 and abs(tr[0] - br[0]) < 0.01
+
+
+@pytest.mark.parametrize("variant", ["left", "right"])
+def test_iso_fits_pre_transform_height(variant):
+    cfg = DeviceFrameTransformConfig(mode="iso", iso_variant=variant)
     corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)
-    assert abs(corners[0][0]) < 0.01
-    assert abs(corners[0][1]) < 0.01
+    ys = [y for _, y in corners]
+    assert abs((max(ys) - min(ys)) - 600) < 0.01
 
 
-def test_iso_right_bl_x_equals_pre_h_times_sin30():
-    cfg = DeviceFrameTransformConfig(mode="iso", iso_variant="right")
-    corners = projected_corners(cfg, 300, 600, 0, 0, 0, 0)  # post_w/post_h unused by iso transform
-    assert corners[3][0] == int(600 * _ISO_SIN)
+@pytest.mark.parametrize("variant", ["left", "right"])
+def test_iso_horizontal_edges_follow_30_degree_axis(variant):
+    import math
+    cfg = DeviceFrameTransformConfig(mode="iso", iso_variant=variant)
+    tl, tr, _, _ = projected_corners(cfg, 300, 600, 0, 0, 0, 0)
+    angle = math.degrees(math.atan2(abs(tr[1] - tl[1]), tr[0] - tl[0]))
+    assert abs(angle - 30) < 0.01
+    tl, tr, br, bl = projected_corners(cfg, 300, 600, 0, 0, 0, 0)
+    width = math.hypot(tr[0] - tl[0], tr[1] - tl[1])
+    height = math.hypot(bl[0] - tl[0], bl[1] - tl[1])
+    assert abs(width / height - 300 / 600) < 0.001  # aspect preserved along iso axes
+
+
+@pytest.mark.parametrize("variant", ["left", "right"])
+def test_iso_corners_match_rendered_pixels(variant):
+    from snapframe.renderer import _apply_iso
+    img = Image.new("RGBA", (300, 600), (255, 0, 0, 255))
+    out = _apply_iso(img, variant)
+    cfg = DeviceFrameTransformConfig(mode="iso", iso_variant=variant)
+    corners = projected_corners(cfg, 300, 600, *out.size, 0, 0)
+    cx = sum(x for x, _ in corners) / 4
+    cy = sum(y for _, y in corners) / 4
+    for x, y in corners:
+        # Step 5 % towards the centroid: must be opaque (inside the device)
+        px = int(x + (cx - x) * 0.05)
+        py = int(y + (cy - y) * 0.05)
+        assert out.getpixel((px, py))[3] == 255, f"expected opaque at {(px, py)}"
+    # Opposite canvas corners outside the face must be transparent
+    if variant == "left":
+        assert out.getpixel((out.width - 2, 1))[3] == 0
+        assert out.getpixel((1, out.height - 2))[3] == 0
+    else:
+        assert out.getpixel((1, 1))[3] == 0
+        assert out.getpixel((out.width - 2, out.height - 2))[3] == 0
 
 
 def test_float_left_lean_tl_y_equals_factor_half_times_post_h():

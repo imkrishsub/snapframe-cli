@@ -44,14 +44,14 @@ def test_apply_iso_left_returns_rgba():
     assert result.mode == "RGBA"
 
 
-def test_apply_iso_wider_than_source():
+def test_apply_iso_narrower_than_source():
     result = _apply_iso(_rgba(100, 200), "left")
-    assert result.width > 100
+    assert result.width < 100
 
 
-def test_apply_iso_shorter_than_source():
+def test_apply_iso_keeps_source_height():
     result = _apply_iso(_rgba(100, 200), "left")
-    assert result.height < 200
+    assert result.height == 200
 
 
 def test_apply_iso_left_and_right_same_size():
@@ -62,9 +62,18 @@ def test_apply_iso_left_and_right_same_size():
 def test_apply_iso_output_dimensions():
     img = _rgba(100, 200)
     result = _apply_iso(img, "left")
-    expected_w = int(100 + 200 * math.sin(math.radians(30)))
-    expected_h = int(200 * math.cos(math.radians(30)))
+    k = 200 / (200 + 100 * math.sin(math.radians(30)))
+    expected_w = round(k * 100 * math.cos(math.radians(30)))
+    expected_h = 200
     assert result.size == (expected_w, expected_h)
+
+
+def test_apply_iso_left_and_right_are_mirrors():
+    img = _rgba(100, 200)
+    left = _apply_iso(img, "left").getchannel("A")
+    right = _apply_iso(img, "right").getchannel("A").transpose(Image.FLIP_LEFT_RIGHT)
+    diff = sum(abs(a - b) for a, b in zip(left.tobytes(), right.tobytes()))
+    assert diff / (left.width * left.height) < 2  # allow resampling noise
 
 
 # ── _apply_float ──────────────────────────────────────────────────────────────
@@ -122,8 +131,9 @@ def test_apply_transform_iso():
     img = _rgba(200, 400)
     cfg = DeviceFrameTransformConfig(mode="iso", iso_variant="left")
     result = apply_transform(img, cfg)
-    expected_w = int(200 + 400 * math.sin(math.radians(30)))
-    expected_h = int(400 * math.cos(math.radians(30)))
+    k = 400 / (400 + 200 * math.sin(math.radians(30)))
+    expected_w = round(k * 200 * math.cos(math.radians(30)))
+    expected_h = 400
     assert result.size == (expected_w, expected_h)
 
 
