@@ -19,7 +19,7 @@ FINISH_PRESETS: dict[str, dict[str, str]] = {
 }
 
 _BEZEL_RGB = (8, 8, 10)     # black glass between the metal band and the screen
-_BAND_FRACTION = 0.3        # share of the spec border_width that is metal band; the rest is bezel
+_BAND_FRACTION = 0.65       # share of the spec border_width that is metal band; the rest is bezel
 
 _DEVICE_MIN_SLIVER = 40  # px — minimum on-canvas sliver when device is dragged off an edge
 

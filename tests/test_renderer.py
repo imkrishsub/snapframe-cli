@@ -95,8 +95,8 @@ def test_frame_band_mid_height_matches_finish_border_color(finish):
     """Mid-height on the metal band the vertical gradient sits on the preset border colour.
 
     Geometry for iphone-16-pro at 400×800:
-      scale = 800/874 ≈ 0.9153, btn_w = 2, band_w = 4, edge_w = 1
-      Band spans x∈[2,5]: x=2 silhouette edge, x=3 highlight, x=5 chamfer, x=4 plain band.
+      scale = 800/874 ≈ 0.9153, btn_w = 2, band_w = 8, edge_w = 1
+      Band spans x∈[2,9]: x=2 silhouette edge, x=3 highlight, x=9 chamfer, x=4 plain band.
     """
     img, _ = generate_frame("iphone-16-pro", 400, 800, finish=finish)
     pixel = img.getpixel((4, 400))
@@ -113,10 +113,10 @@ def test_frame_band_is_lit_from_above(finish):
 
 @pytest.mark.parametrize("finish", sorted(FINISH_PRESETS))
 def test_frame_has_dark_glass_bezel_between_band_and_screen(finish):
-    """Between the metal band (ends x=5) and the screen (starts sx≈14) sits the black bezel."""
+    """Between the metal band (ends x=9) and the screen (starts sx≈14) sits the black bezel."""
     img, (sx, _, _, _, _) = generate_frame("iphone-16-pro", 400, 800, finish=finish)
-    assert sx > 10
-    assert img.getpixel((10, 400)) == (*_BEZEL_RGB, 255)
+    assert sx > 12
+    assert img.getpixel((12, 400)) == (*_BEZEL_RGB, 255)
 
 
 def test_frame_outer_edge_is_darker_than_band():
