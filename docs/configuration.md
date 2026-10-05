@@ -163,7 +163,7 @@ Controls how the device frame is projected onto the canvas.
 | `mode` | `"none"` | Projection mode: `"none"`, `"tilt"`, `"iso"`, or `"float"` |
 | `tilt_angle` | `-15.0` | Rotation angle in degrees; negative = counter-clockwise (used when `mode = "tilt"`) |
 | `iso_variant` | `"left"` | Isometric face (used when `mode = "iso"`): `"left"` slopes down to the right, `"right"` slopes down to the left. Vertical edges stay vertical; the device keeps its original height |
-| `float_preset` | `"left-lean"` | `"left-lean"` or `"right-lean"` floating device pose (used when `mode = "float"`) |
+| `float_preset` | `"left-lean"` | Floating device pose (used when `mode = "float"`): device turned 30° about its vertical axis with camera perspective. `"left-lean"` keeps the right edge nearest, `"right-lean"` the left edge. The near edge keeps full height; the width foreshortens |
 
 **No transform:**
 

@@ -83,16 +83,23 @@ def test_apply_float_returns_rgba():
     assert result.mode == "RGBA"
 
 
-def test_apply_float_preserves_size():
+def test_apply_float_keeps_height_and_foreshortens_width():
     img = _rgba(200, 400)
     for preset in ("left-lean", "right-lean"):
-        assert _apply_float(img, preset).size == img.size
+        out = _apply_float(img, preset)
+        assert out.height == 400
+        assert out.width < 200 * math.cos(math.radians(20)), "width should foreshorten"
 
 
-def test_apply_float_unknown_preset_does_not_raise():
-    result = _apply_float(_rgba(200, 400), "nonexistent")
-    assert result is not None
-    assert result.size == (200, 400)
+def test_apply_float_left_and_right_same_size():
+    img = _rgba(200, 400)
+    assert _apply_float(img, "left-lean").size == _apply_float(img, "right-lean").size
+
+
+def test_apply_float_unknown_preset_falls_back_to_left_lean():
+    img = _rgba(200, 400)
+    result = _apply_float(img, "nonexistent")
+    assert result.tobytes() == _apply_float(img, "left-lean").tobytes()
 
 
 def test_apply_float_left_lean_has_transparent_top_left_corner():
@@ -104,13 +111,13 @@ def test_apply_float_left_lean_has_transparent_top_left_corner():
 def test_apply_float_left_lean_top_right_corner_is_opaque():
     # Right edge faces the viewer — top-right corner should remain opaque.
     result = _apply_float(_rgba(200, 400), "left-lean")
-    assert result.getpixel((199, 0))[3] > 0, "top-right corner should be opaque for left-lean"
+    assert result.getpixel((result.width - 1, 0))[3] > 0, "top-right corner should be opaque for left-lean"
 
 
 def test_apply_float_right_lean_has_transparent_top_right_corner():
     # right-lean is the mirror — top-right corner should recede and be transparent.
     result = _apply_float(_rgba(200, 400), "right-lean")
-    assert result.getpixel((199, 0))[3] == 0, "top-right corner should be transparent for right-lean"
+    assert result.getpixel((result.width - 1, 0))[3] == 0, "top-right corner should be transparent for right-lean"
 
 
 def test_apply_float_right_lean_top_left_corner_is_opaque():
@@ -141,7 +148,7 @@ def test_apply_transform_float():
     img = _rgba(200, 400)
     cfg = DeviceFrameTransformConfig(mode="float", float_preset="left-lean")
     result = apply_transform(img, cfg)
-    assert result.size == img.size
+    assert result.size == _apply_float(img, "left-lean").size
 
 
 def test_apply_transform_none():
