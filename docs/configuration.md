@@ -1,6 +1,6 @@
 # Configuration reference
 
-## Project file (`snapframe.toml`)
+## Project file (`snaphaus.toml`)
 
 Each `[[images]]` entry defines one output PNG.
 

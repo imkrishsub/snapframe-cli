@@ -1,4 +1,4 @@
-# Snapframe
+# Snaphaus
 
 Generate polished App Store screenshots and marketing images from plain screenshots and text. Use the CLI to automate batch builds, or the web UI for interactive design.
 
@@ -27,14 +27,14 @@ pip install -e .
 
 ```bash
 # 1. Scaffold a new project
-snapframe init my-app
+snaphaus init my-app
 
 # 2. Drop a font (e.g. Inter-Bold.ttf) into my-app/assets/fonts/
 # 3. Drop your app screenshots into my-app/assets/screenshots/
-# 4. Edit my-app/snapframe.toml with your titles and screenshot paths
+# 4. Edit my-app/snaphaus.toml with your titles and screenshot paths
 # 5. Build
 cd my-app
-snapframe build
+snaphaus build
 ```
 
 Output PNGs are written to `output/`.
@@ -42,7 +42,7 @@ Output PNGs are written to `output/`.
 ## Documentation
 
 - [Getting started](docs/getting-started.md) — installation, commands, and your first project
-- [Configuration reference](docs/configuration.md) — all `snapframe.toml` and template TOML fields
+- [Configuration reference](docs/configuration.md) — all `snaphaus.toml` and template TOML fields
 
 ## Development
 
@@ -54,7 +54,7 @@ pytest
 Run against the included test fixture:
 
 ```bash
-snapframe build --project test/post-xnapper.toml
+snaphaus build --project test/post-xnapper.toml
 # Inspect output in test/output/
 ```
 
@@ -64,8 +64,8 @@ Bug reports and pull requests are welcome via [GitHub Issues](../../issues).
 
 A few guidelines:
 
-- **New config field?** Add it to `src/snapframe/config.py`, document it in `docs/configuration.md`, and add a corresponding test in `tests/test_docs_examples.py`. The doc tests treat the docs as a contract — if the example in the docs doesn't build, the test fails.
-- **New render feature?** Add tests in `tests/test_renderer.py`. There is no automated visual test — validate by running `snapframe build --project test/post-xnapper.toml` and inspecting `test/output/`.
+- **New config field?** Add it to `src/snaphaus/config.py`, document it in `docs/configuration.md`, and add a corresponding test in `tests/test_docs_examples.py`. The doc tests treat the docs as a contract — if the example in the docs doesn't build, the test fails.
+- **New render feature?** Add tests in `tests/test_renderer.py`. There is no automated visual test — validate by running `snaphaus build --project test/post-xnapper.toml` and inspecting `test/output/`.
 - **New CLI command?** Add tests in `tests/test_cli.py` using Click's `CliRunner`.
 
 ## License
@@ -74,4 +74,4 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-For interactive design, live preview, and one-click App Store export, use the web UI at [snapframe.app](https://snapframe.app). If snapframe saves you time, consider [buying me a coffee](https://ko-fi.com/krishsub).
+For interactive design, live preview, and one-click App Store export, use the web UI at [snaphaus.app](https://snaphaus.app). If snaphaus saves you time, consider [buying me a coffee](https://ko-fi.com/krishsub).

@@ -3,7 +3,7 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "snapframe"
+name = "snaphaus"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
@@ -15,10 +15,10 @@ dependencies = [
 dev = ["pytest>=8.0"]
 
 [project.scripts]
-snapframe = "snapframe.cli:cli"
+snaphaus = "snaphaus.cli:cli"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-snapframe = ["frames/*", "fonts/*"]
+snaphaus = ["frames/*", "fonts/*"]
