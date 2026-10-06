@@ -11,6 +11,9 @@ class BackgroundConfig:
     colors: list[str] = field(default_factory=lambda: ["#667eea", "#764ba2"])
     angle: int = 135
     color: str = "#667eea"
+    path: str = ""
+    blur: int = 0
+    dim: float = 0.0
 
 
 @dataclass
@@ -90,6 +93,12 @@ def _make_background(d: dict) -> BackgroundConfig:
         cfg.angle = d["angle"]
     if "color" in d:
         cfg.color = d["color"]
+    if "path" in d:
+        cfg.path = d["path"]
+    if "blur" in d:
+        cfg.blur = d["blur"]
+    if "dim" in d:
+        cfg.dim = d["dim"]
     return cfg
 
 

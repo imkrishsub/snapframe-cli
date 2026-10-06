@@ -53,10 +53,13 @@ A template TOML controls canvas size, layout, background, font, and screenshot d
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `type` | `"gradient"` | `"gradient"` or `"solid"` |
+| `type` | `"gradient"` | `"gradient"`, `"solid"`, or `"image"` |
 | `colors` | `["#667eea", "#764ba2"]` | Two hex colors for gradient (start and end) |
 | `angle` | `135` | Gradient angle in degrees |
 | `color` | `"#667eea"` | Hex color for solid backgrounds |
+| `path` | `""` | Image file for image backgrounds (relative to the project file). Scaled to cover the canvas and centre-cropped. |
+| `blur` | `0` | Gaussian blur radius in pixels for image backgrounds |
+| `dim` | `0.0` | Black overlay opacity (0–1) for image backgrounds; keeps light text legible |
 
 **Gradient:**
 
@@ -73,6 +76,16 @@ angle  = 135
 [background]
 type  = "solid"
 color = "#1a1a2e"
+```
+
+**Image:**
+
+```toml
+[background]
+type = "image"
+path = "assets/backgrounds/desk.jpg"
+blur = 20
+dim  = 0.35
 ```
 
 **Curated palettes** (these are the same values used by the web UI color swatches):

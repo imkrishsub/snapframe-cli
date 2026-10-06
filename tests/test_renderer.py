@@ -1,9 +1,10 @@
 from pathlib import Path
 
 import pytest
+from PIL import Image
 
-from snapframe.config import ImageConfig, TemplateConfig
-from snapframe.renderer import _BEZEL_RGB, _hex_to_rgb, _DEVICE_MIN_SLIVER, _FRAMES_DIR, FINISH_PRESETS, generate_frame, render, render_with_bounds
+from snapframe.config import BackgroundConfig, ImageConfig, TemplateConfig
+from snapframe.renderer import _BEZEL_RGB, _hex_to_rgb, _DEVICE_MIN_SLIVER, _FRAMES_DIR, FINISH_PRESETS, create_background, generate_frame, render, render_with_bounds
 
 # Discovered at import time so pytest.mark.parametrize can use it.
 ALL_MODELS = sorted(p.stem for p in _FRAMES_DIR.glob("*.toml"))
@@ -394,3 +395,88 @@ def test_sliver_preserved_on_all_edges(tmp_path):
         assert dx <= width  - _DEVICE_MIN_SLIVER, f"right sliver violated at offset ({offset_x},{offset_y})"
         assert dy >= -(dh - _DEVICE_MIN_SLIVER), f"top sliver violated at offset ({offset_x},{offset_y})"
         assert dy <= height - _DEVICE_MIN_SLIVER, f"bottom sliver violated at offset ({offset_x},{offset_y})"
+
+
+# ── Image backgrounds ─────────────────────────────────────────────────────────
+
+_STRIPES = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0)]
+
+
+def _save_stripes(path: Path) -> None:
+    """200x100 image of four 50px vertical stripes: red, green, blue, yellow."""
+    img = Image.new("RGB", (200, 100))
+    for i, color in enumerate(_STRIPES):
+        img.paste(color, (i * 50, 0, (i + 1) * 50, 100))
+    img.save(path)
+
+
+def test_image_background_cover_fits_and_centre_crops(tmp_path):
+    _save_stripes(tmp_path / "bg.png")
+    bg = BackgroundConfig(type="image", path="bg.png")
+
+    img = create_background((100, 100), bg, tmp_path)
+
+    # Cover fit keeps the 2:1 aspect and crops the outer stripes; a stretch
+    # would squeeze all four stripes into view instead.
+    assert img.size == (100, 100)
+    assert img.getpixel((25, 50)) == (0, 255, 0)
+    assert img.getpixel((75, 50)) == (0, 0, 255)
+
+
+def test_image_background_upscales_small_source(tmp_path):
+    _save_stripes(tmp_path / "bg.png")
+    bg = BackgroundConfig(type="image", path="bg.png")
+
+    img = create_background((400, 400), bg, tmp_path)
+
+    assert img.size == (400, 400)
+    assert img.getpixel((100, 200)) == (0, 255, 0)
+    assert img.getpixel((300, 200)) == (0, 0, 255)
+
+
+def test_image_background_blur_softens_edges(tmp_path):
+    src = Image.new("RGB", (100, 100), (0, 0, 0))
+    src.paste((255, 255, 255), (50, 0, 100, 100))
+    src.save(tmp_path / "bg.png")
+
+    sharp = create_background((100, 100), BackgroundConfig(type="image", path="bg.png"), tmp_path)
+    blurred = create_background((100, 100), BackgroundConfig(type="image", path="bg.png", blur=10), tmp_path)
+
+    assert sharp.getpixel((48, 50)) == (0, 0, 0)
+    assert 0 < blurred.getpixel((48, 50))[0] < 255
+
+
+def test_image_background_dim_darkens(tmp_path):
+    Image.new("RGB", (50, 50), (200, 100, 50)).save(tmp_path / "bg.png")
+    bg = BackgroundConfig(type="image", path="bg.png", dim=0.5)
+
+    img = create_background((50, 50), bg, tmp_path)
+
+    assert img.getpixel((25, 25)) == pytest.approx((100, 50, 25), abs=1)
+
+
+def test_image_background_transparent_pixels_render_black(tmp_path):
+    Image.new("RGBA", (50, 50), (255, 255, 255, 0)).save(tmp_path / "bg.png")
+    bg = BackgroundConfig(type="image", path="bg.png")
+
+    img = create_background((50, 50), bg, tmp_path)
+
+    assert img.mode == "RGB"
+    assert img.getpixel((25, 25)) == (0, 0, 0)
+
+
+def test_image_background_missing_file_raises(tmp_path):
+    bg = BackgroundConfig(type="image", path="missing.png")
+
+    with pytest.raises(FileNotFoundError):
+        create_background((50, 50), bg, tmp_path)
+
+
+def test_render_uses_image_background(tmp_path):
+    Image.new("RGB", (64, 64), (10, 120, 200)).save(tmp_path / "bg.png")
+    template = TemplateConfig()
+    template.background = BackgroundConfig(type="image", path="bg.png")
+
+    img = render(template, ImageConfig(title="Hi"), tmp_path)
+
+    assert img.convert("RGB").getpixel((2, 2)) == (10, 120, 200)
