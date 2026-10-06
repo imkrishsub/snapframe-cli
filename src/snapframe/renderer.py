@@ -4,7 +4,7 @@ import math
 import tomllib
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
 from .config import DeviceFrameConfig, DeviceFrameTransformConfig, FontConfig, ImageConfig, ScreenshotConfig, TemplateConfig
 
@@ -168,9 +168,24 @@ def create_gradient(size: tuple[int, int], colors: list[str], angle: int = 135) 
     return result
 
 
-def create_background(size: tuple[int, int], bg_config) -> Image.Image:
+def create_image_background(size: tuple[int, int], bg_config, project_root: Path) -> Image.Image:
+    src = Image.open(project_root / bg_config.path).convert("RGBA")
+    # Transparent areas read as black rather than whatever RGB sits under alpha 0.
+    flat = Image.new("RGB", src.size, (0, 0, 0))
+    flat.paste(src, mask=src.getchannel("A"))
+    img = ImageOps.fit(flat, size, method=Image.LANCZOS)
+    if bg_config.blur > 0:
+        img = img.filter(ImageFilter.GaussianBlur(bg_config.blur))
+    if bg_config.dim > 0:
+        img = Image.blend(img, Image.new("RGB", size, (0, 0, 0)), min(bg_config.dim, 1.0))
+    return img
+
+
+def create_background(size: tuple[int, int], bg_config, project_root: Path = Path(".")) -> Image.Image:
     if bg_config.type == "gradient":
         return create_gradient(size, bg_config.colors, bg_config.angle)
+    elif bg_config.type == "image":
+        return create_image_background(size, bg_config, project_root)
     else:
         rgb = _hex_to_rgb(bg_config.color)
         return Image.new("RGB", size, rgb)
@@ -605,7 +620,7 @@ def render_hero(
         and image_config.screenshot is not None
     )
 
-    bg = create_background(template.size, template.background)
+    bg = create_background(template.size, template.background, project_root)
 
     # We need a draw object to measure text
     dummy_img = Image.new("RGB", (1, 1))

@@ -99,6 +99,21 @@ def test_make_background_unknown_keys_ignored():
     assert isinstance(cfg, BackgroundConfig)
 
 
+def test_make_background_image_defaults():
+    cfg = _make_background({})
+    assert cfg.path == ""
+    assert cfg.blur == 0
+    assert cfg.dim == 0.0
+
+
+def test_make_background_reads_image_fields():
+    cfg = _make_background({"type": "image", "path": "bg.jpg", "blur": 12, "dim": 0.3})
+    assert cfg.type == "image"
+    assert cfg.path == "bg.jpg"
+    assert cfg.blur == 12
+    assert cfg.dim == 0.3
+
+
 # ── _make_font ────────────────────────────────────────────────────────────────
 
 def test_make_font_empty_dict_returns_defaults():

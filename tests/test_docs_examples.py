@@ -72,6 +72,37 @@ def test_minimal_project_example_builds(runner, tmp_path):
     assert Image.open(out).format == "PNG"
 
 
+def test_image_background_example_builds(runner, tmp_path):
+    """The image background snippet from configuration.md must build successfully."""
+    runner.invoke(cli, ["init", str(tmp_path)])
+    _make_screenshot(tmp_path / "assets" / "backgrounds" / "desk.jpg", 1600, 1200)
+
+    template = tmp_path / "templates" / "appstore" / "iphone-69.toml"
+    text = template.read_text()
+    start = text.index("[background]")
+    end = text.index("\n[", start + 1)
+    template.write_text(
+        text[:start]
+        + '[background]\n'
+        'type = "image"\n'
+        'path = "assets/backgrounds/desk.jpg"\n'
+        'blur = 20\n'
+        'dim  = 0.35\n'
+        + text[end:]
+    )
+    (tmp_path / "snapframe.toml").write_text(
+        '[[images]]\n'
+        'template = "templates/appstore/iphone-69.toml"\n'
+        'output   = "output/bg.png"\n'
+        'title    = "Hello"\n'
+    )
+
+    result = runner.invoke(cli, ["build", "--project", str(tmp_path / "snapframe.toml")])
+    assert result.exit_code == 0, result.output
+    assert load_template(template, tmp_path).background.type == "image"
+    assert (tmp_path / "output" / "bg.png").exists()
+
+
 def test_full_template_example_parses(tmp_path):
     """The full annotated template from configuration.md must parse without error."""
     # Full example — matches the TOML block in the "Full example" section exactly
