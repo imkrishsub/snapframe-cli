@@ -3,8 +3,8 @@ import math
 import pytest
 from PIL import Image
 
-from snapframe.config import DeviceFrameTransformConfig
-from snapframe.renderer import _apply_tilt, _apply_iso, _apply_float, apply_transform
+from snaphaus.config import DeviceFrameTransformConfig
+from snaphaus.renderer import _apply_tilt, _apply_iso, _apply_float, apply_transform
 
 
 def _rgba(w, h):

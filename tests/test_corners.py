@@ -4,8 +4,8 @@ from __future__ import annotations
 import pytest
 from PIL import Image
 
-from snapframe.config import DeviceFrameTransformConfig
-from snapframe.renderer import (
+from snaphaus.config import DeviceFrameTransformConfig
+from snaphaus.renderer import (
     _ISO_COS,
     _ISO_SIN,
     _apply_tilt,
@@ -117,7 +117,7 @@ def test_iso_horizontal_edges_follow_30_degree_axis(variant):
 
 @pytest.mark.parametrize("variant", ["left", "right"])
 def test_iso_corners_match_rendered_pixels(variant):
-    from snapframe.renderer import _apply_iso
+    from snaphaus.renderer import _apply_iso
     img = Image.new("RGBA", (300, 600), (255, 0, 0, 255))
     out = _apply_iso(img, variant)
     cfg = DeviceFrameTransformConfig(mode="iso", iso_variant=variant)
@@ -176,7 +176,7 @@ def test_float_right_lean_mirrors_left_lean():
 
 @pytest.mark.parametrize("preset", ["left-lean", "right-lean"])
 def test_float_corners_match_rendered_pixels(preset):
-    from snapframe.renderer import _apply_float
+    from snaphaus.renderer import _apply_float
     img = Image.new("RGBA", (300, 600), (255, 0, 0, 255))
     out = _apply_float(img, preset)
     corners = _float(preset)
@@ -189,7 +189,7 @@ def test_float_corners_match_rendered_pixels(preset):
 
 
 def test_solve_perspective_maps_dst_to_src():
-    from snapframe.renderer import _solve_perspective
+    from snaphaus.renderer import _solve_perspective
     dst = [(0, 30), (170, 0), (170, 600), (0, 570)]
     src = [(0, 0), (300, 0), (300, 600), (0, 600)]
     a, b, c, d, e, f, g, h = _solve_perspective(dst, src)

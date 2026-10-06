@@ -23,14 +23,14 @@ pip install -e .
 ## Your first project
 
 ```bash
-snapframe init my-app
+snaphaus init my-app
 ```
 
 This creates:
 
 ```
 my-app/
-  snapframe.toml                     # project config
+  snaphaus.toml                     # project config
   templates/
     hero-og.toml                     # 1200×630 OG image
     hero-square.toml                 # 1080×1080 square
@@ -49,44 +49,44 @@ Then:
 
 1. Drop a font (e.g. `Inter-Bold.ttf`) into `my-app/assets/fonts/`
 2. Drop your app screenshots into `my-app/assets/screenshots/`
-3. Edit `my-app/snapframe.toml` — update titles and screenshot paths
+3. Edit `my-app/snaphaus.toml` — update titles and screenshot paths
 4. Build:
 
 ```bash
 cd my-app
-snapframe build
+snaphaus build
 ```
 
 Output PNGs are written to `output/`.
 
 ## Commands
 
-### `snapframe init [PROJECT_DIR]`
+### `snaphaus init [PROJECT_DIR]`
 
 Scaffolds a new project directory with starter TOML files and an empty asset structure.
 
 `PROJECT_DIR` defaults to `.` if omitted. Existing files are left unchanged; a warning is printed for each one skipped.
 
-### `snapframe build [OPTIONS]`
+### `snaphaus build [OPTIONS]`
 
-Renders all images defined in `snapframe.toml`.
+Renders all images defined in `snaphaus.toml`.
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--project PATH` | `snapframe.toml` | Path to the project TOML file |
+| `--project PATH` | `snaphaus.toml` | Path to the project TOML file |
 | `--only TEXT` | — | Only build images whose output filename contains this substring |
 
 ```bash
 # Build everything
-snapframe build
+snaphaus build
 
 # Use a project file in a different directory
-snapframe build --project ~/projects/myapp/snapframe.toml
+snaphaus build --project ~/projects/myapp/snaphaus.toml
 
 # Rebuild one size without running all of them
-snapframe build --only iphone-69
+snaphaus build --only iphone-69
 ```
 
 ---
 
-For interactive design, live preview, and one-click App Store export, use the web UI at [snapframe.app](https://snapframe.app).
+For interactive design, live preview, and one-click App Store export, use the web UI at [snaphaus.app](https://snaphaus.app).

@@ -199,7 +199,7 @@ def cli():
 @cli.command()
 @click.argument("project_dir", default=".", required=False)
 def init(project_dir: str):
-    """Initialize a new snapframe project."""
+    """Initialize a new snaphaus project."""
     root = Path(project_dir).resolve()
     root.mkdir(parents=True, exist_ok=True)
 
@@ -215,7 +215,7 @@ def init(project_dir: str):
 
     # Write files, skipping existing ones
     files = {
-        root / "snapframe.toml": PROJECT_TOML,
+        root / "snaphaus.toml": PROJECT_TOML,
         root / "templates" / "hero-og.toml": HERO_OG_TOML,
         root / "templates" / "hero-square.toml": HERO_SQUARE_TOML,
         root / "templates" / "appstore" / "iphone-69.toml": APPSTORE_IPHONE_69_TOML,
@@ -239,12 +239,12 @@ def init(project_dir: str):
     click.echo("Next steps:")
     click.echo("  1. Add a font to assets/fonts/ (e.g. Inter-Bold.ttf)")
     click.echo("  2. Add screenshots to assets/screenshots/")
-    click.echo("  3. Edit snapframe.toml with your titles and screenshot paths")
-    click.echo("  4. Run: snapframe build")
+    click.echo("  3. Edit snaphaus.toml with your titles and screenshot paths")
+    click.echo("  4. Run: snaphaus build")
 
 
 @cli.command()
-@click.option("--project", default="snapframe.toml", show_default=True, help="Path to project TOML file.")
+@click.option("--project", default="snaphaus.toml", show_default=True, help="Path to project TOML file.")
 @click.option("--only", default=None, help="Filter images by output filename substring.")
 def build(project: str, only: str | None):
     """Build all images defined in the project config."""

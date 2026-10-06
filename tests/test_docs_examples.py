@@ -11,8 +11,8 @@ import pytest
 from click.testing import CliRunner
 from PIL import Image
 
-from snapframe.cli import cli
-from snapframe.config import load_template
+from snaphaus.cli import cli
+from snaphaus.config import load_template
 
 
 def _make_screenshot(path: Path, width: int = 390, height: int = 844) -> None:
@@ -33,7 +33,7 @@ def test_init_creates_documented_structure(runner, tmp_path):
     assert result.exit_code == 0
 
     # Every path listed in the annotated tree in getting-started.md
-    assert (tmp_path / "snapframe.toml").is_file()
+    assert (tmp_path / "snaphaus.toml").is_file()
     assert (tmp_path / "templates" / "hero-og.toml").is_file()
     assert (tmp_path / "templates" / "hero-square.toml").is_file()
     assert (tmp_path / "templates" / "appstore" / "iphone-69.toml").is_file()
@@ -46,16 +46,16 @@ def test_init_creates_documented_structure(runner, tmp_path):
 
 
 def test_minimal_project_example_builds(runner, tmp_path):
-    """The minimal snapframe.toml from configuration.md must build successfully."""
+    """The minimal snaphaus.toml from configuration.md must build successfully."""
     # Scaffold the full project structure (gets us the iphone-69 template)
     runner.invoke(cli, ["init", str(tmp_path)])
 
     # Create a placeholder screenshot at the path used in the docs example
     _make_screenshot(tmp_path / "assets" / "screenshots" / "app-screenshot.png")
 
-    # Overwrite the default snapframe.toml that init created.
+    # Overwrite the default snaphaus.toml that init created.
     # This is the minimal example from docs/configuration.md exactly.
-    (tmp_path / "snapframe.toml").write_text(
+    (tmp_path / "snaphaus.toml").write_text(
         '[[images]]\n'
         'template   = "templates/appstore/iphone-69.toml"\n'
         'output     = "output/appstore/iphone-69-hero.png"\n'
@@ -64,7 +64,7 @@ def test_minimal_project_example_builds(runner, tmp_path):
         'screenshot = "assets/screenshots/app-screenshot.png"\n'
     )
 
-    result = runner.invoke(cli, ["build", "--project", str(tmp_path / "snapframe.toml")])
+    result = runner.invoke(cli, ["build", "--project", str(tmp_path / "snaphaus.toml")])
     assert result.exit_code == 0
 
     out = tmp_path / "output" / "appstore" / "iphone-69-hero.png"
@@ -90,14 +90,14 @@ def test_image_background_example_builds(runner, tmp_path):
         'dim  = 0.35\n'
         + text[end:]
     )
-    (tmp_path / "snapframe.toml").write_text(
+    (tmp_path / "snaphaus.toml").write_text(
         '[[images]]\n'
         'template = "templates/appstore/iphone-69.toml"\n'
         'output   = "output/bg.png"\n'
         'title    = "Hello"\n'
     )
 
-    result = runner.invoke(cli, ["build", "--project", str(tmp_path / "snapframe.toml")])
+    result = runner.invoke(cli, ["build", "--project", str(tmp_path / "snaphaus.toml")])
     assert result.exit_code == 0, result.output
     assert load_template(template, tmp_path).background.type == "image"
     assert (tmp_path / "output" / "bg.png").exists()
@@ -181,7 +181,7 @@ def test_transform_modes_build(runner, tmp_path, mode, extra_toml):
     _make_screenshot(tmp_path / "assets" / "screenshots" / "app-screenshot.png")
 
     # Project config
-    (tmp_path / "snapframe.toml").write_text(
+    (tmp_path / "snaphaus.toml").write_text(
         '[[images]]\n'
         'template   = "templates/transform.toml"\n'
         f'output     = "output/transform-{mode}.png"\n'
@@ -202,7 +202,7 @@ def test_transform_modes_build(runner, tmp_path, mode, extra_toml):
         f'[device_frame.transform]\nmode = "{mode}"\n{extra_toml}'
     )
 
-    result = runner.invoke(cli, ["build", "--project", str(tmp_path / "snapframe.toml")])
+    result = runner.invoke(cli, ["build", "--project", str(tmp_path / "snaphaus.toml")])
     assert result.exit_code == 0
 
     out = tmp_path / "output" / f"transform-{mode}.png"

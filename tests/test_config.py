@@ -1,6 +1,6 @@
 import pytest
 
-from snapframe.config import (
+from snaphaus.config import (
     BackgroundConfig,
     DeviceFrameConfig,
     DeviceFrameTransformConfig,

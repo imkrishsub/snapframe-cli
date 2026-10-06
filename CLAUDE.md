@@ -17,30 +17,30 @@ pip install -e .
 
 | Task | Command |
 |------|---------|
-| Build all images | `snapframe build` |
-| Build with custom project file | `snapframe build --project path/to/snapframe.toml` |
-| Build filtered subset | `snapframe build --only hero-og` |
-| Init a new project | `snapframe init [project_dir]` |
-| Run against test fixtures | `snapframe build --project test/post-xnapper.toml` |
+| Build all images | `snaphaus build` |
+| Build with custom project file | `snaphaus build --project path/to/snaphaus.toml` |
+| Build filtered subset | `snaphaus build --only hero-og` |
+| Init a new project | `snaphaus init [project_dir]` |
+| Run against test fixtures | `snaphaus build --project test/post-xnapper.toml` |
 
-There is no automated test suite. Validate changes by running `snapframe build --project test/post-xnapper.toml` and inspecting `test/output/`.
+There is no automated test suite. Validate changes by running `snaphaus build --project test/post-xnapper.toml` and inspecting `test/output/`.
 
 ## Architecture
 
 The tool has three layers:
 
-1. **CLI** (`src/snapframe/cli.py`) — entry point via Click. `init` scaffolds a new project directory; `build` loads configs and calls the renderer for each image entry.
+1. **CLI** (`src/snaphaus/cli.py`) — entry point via Click. `init` scaffolds a new project directory; `build` loads configs and calls the renderer for each image entry.
 
-2. **Config** (`src/snapframe/config.py`) — parses two kinds of TOML files using `tomllib`:
-   - *Project file* (`snapframe.toml`) — an `[[images]]` array; each entry references a template, an output path, a title string, and an optional screenshot path.
+2. **Config** (`src/snaphaus/config.py`) — parses two kinds of TOML files using `tomllib`:
+   - *Project file* (`snaphaus.toml`) — an `[[images]]` array; each entry references a template, an output path, a title string, and an optional screenshot path.
    - *Template file* (e.g. `templates/hero-og.toml`) — defines canvas size, layout, background, font, text position, and screenshot display options.
 
-3. **Renderer** (`src/snapframe/renderer.py`) — pure Pillow logic. `render()` dispatches on `template.layout`; only `"hero"` is implemented. `render_hero` builds the gradient background, wraps and draws the title text, loads and composites the screenshot (with optional rounded corners and drop shadow).
+3. **Renderer** (`src/snaphaus/renderer.py`) — pure Pillow logic. `render()` dispatches on `template.layout`; only `"hero"` is implemented. `render_hero` builds the gradient background, wraps and draws the title text, loads and composites the screenshot (with optional rounded corners and drop shadow).
 
 ## Key data flow
 
 ```
-snapframe.toml  -->  ProjectConfig (list of ImageConfig)
+snaphaus.toml  -->  ProjectConfig (list of ImageConfig)
                          |
 templates/*.toml --> TemplateConfig
                          |

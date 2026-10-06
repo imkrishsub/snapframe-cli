@@ -3,8 +3,8 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from snapframe.config import BackgroundConfig, ImageConfig, TemplateConfig
-from snapframe.renderer import _BEZEL_RGB, _hex_to_rgb, _DEVICE_MIN_SLIVER, _FRAMES_DIR, FINISH_PRESETS, create_background, generate_frame, render, render_with_bounds
+from snaphaus.config import BackgroundConfig, ImageConfig, TemplateConfig
+from snaphaus.renderer import _BEZEL_RGB, _hex_to_rgb, _DEVICE_MIN_SLIVER, _FRAMES_DIR, FINISH_PRESETS, create_background, generate_frame, render, render_with_bounds
 
 # Discovered at import time so pytest.mark.parametrize can use it.
 ALL_MODELS = sorted(p.stem for p in _FRAMES_DIR.glob("*.toml"))
